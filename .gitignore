@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+*.exe
+*.spec
+*.egg-info/
+.env
+known_cities.json
+result.txt
+routes_utf8.txt
+analysis_utf8.txt
+analyze_excel*.py
+test_*.py
+GPS.xls
