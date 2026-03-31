@@ -10,6 +10,8 @@ const { generateExcel } = require('./src/excelGenerator');
 const app    = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
+app.use(express.static(path.join(__dirname, 'public')));
+
 // ── HTML page (verbatim from app.py) ─────────────────────────────────────────
 
 /* eslint-disable no-useless-escape */
@@ -19,6 +21,13 @@ const HTML_PAGE = String.raw`<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ewidencja Przebiegu Pojazdu &#x2013; Smart Work</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#10B981">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ewidencja">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <style>
 :root{--bg:#0B1120;--surface:#111827;--card:#1C2535;--border:#2D3748;--accent:#10B981;--accent2:#059669;--text:#F1F5F9;--muted:#94A3B8;--gray:#6B7280;--err:#EF4444;--radius:14px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -76,6 +85,9 @@ h1{font-size:26px;font-weight:800;line-height:1.25}
 .status.err{display:flex;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#FCA5A5}
 .status .si{font-size:18px;flex-shrink:0}
 .info-box{display:flex;gap:10px;align-items:flex-start;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-top:16px;font-size:12px;color:var(--muted);line-height:1.6}
+.install-btn{display:none;width:100%;padding:13px;background:transparent;color:var(--accent);font-size:13px;font-weight:700;letter-spacing:.03em;border:1.5px solid rgba(16,185,129,.4);border-radius:var(--radius);cursor:pointer;transition:all .22s;align-items:center;justify-content:center;gap:8px;margin-bottom:12px}
+.install-btn:hover{background:rgba(16,185,129,.08);border-color:var(--accent)}
+.install-btn.visible{display:flex}
 </style>
 </head>
 <body>
@@ -198,6 +210,7 @@ h1{font-size:26px;font-weight:800;line-height:1.25}
     </div>
   </div>
 
+  <button class="install-btn" id="install-btn" onclick="installApp()">&#x2B07; Zainstaluj aplikacj&#x119; na urz&#x105;dzeniu</button>
   <button class="btn" id="btn" onclick="generate()">
 
     <div class="spinner" id="spinner"></div>
@@ -212,22 +225,41 @@ h1{font-size:26px;font-weight:800;line-height:1.25}
   </div>
 </div>
 <script>
+// ── PWA ──────────────────────────────────────────────────────────────────────
+let _installPrompt=null;
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+}
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();_installPrompt=e;
+  document.getElementById('install-btn').classList.add('visible');
+});
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('install-btn').classList.remove('visible');
+  _installPrompt=null;
+});
+function installApp(){
+  if(!_installPrompt)return;
+  _installPrompt.prompt();
+  _installPrompt.userChoice.then(()=>{_installPrompt=null;document.getElementById('install-btn').classList.remove('visible')});
+}
+// ── App ───────────────────────────────────────────────────────────────────────
 const refuelDates=[];
 const zone=document.getElementById('zone');
 zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag')});
 zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));
 zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');if(e.dataTransfer.files.length){document.getElementById('gps_file').files=e.dataTransfer.files;handleFile(document.getElementById('gps_file'))}});
-function handleFile(input){if(input.files&&input.files[0]){const name=input.files[0].name;zone.classList.add('has-file');document.getElementById('file-title').textContent=name;document.getElementById('file-hint').textContent=(input.files[0].size/1024/1024).toFixed(2)+' MB';document.getElementById('file-badge').textContent='&#x2713; '+name;document.getElementById('gps-card').style.borderColor='rgba(16,185,129,.6)'}}
+function handleFile(input){if(input.files&&input.files[0]){const name=input.files[0].name;zone.classList.add('has-file');document.getElementById('file-title').textContent=name;document.getElementById('file-hint').textContent=(input.files[0].size/1024/1024).toFixed(2)+' MB';document.getElementById('file-badge').textContent='\u2713 '+name;document.getElementById('gps-card').style.borderColor='rgba(16,185,129,.6)'}}
 document.getElementById('refuel_input').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '||e.key===','){e.preventDefault();const v=e.target.value.trim();if(v){addTag(v);e.target.value=''}}});
 document.getElementById('refuel_input').addEventListener('blur',e=>{const v=e.target.value.trim();if(v){addTag(v);e.target.value=''}});
-function addTag(val){val=val.replace(/[,;]/g,'').trim();if(!val||refuelDates.includes(val))return;if(!/^\d{1,2}[.\-\/]\d{1,2}([.\-\/]\d{2,4})?$/.test(val)){showStatus('err','&#x26A0;','Nieprawid&#x142;owy format: '+val+'. U&#x17C;yj DD.MM');return}refuelDates.push(val);const wrap=document.getElementById('refuel-tags');const tag=document.createElement('div');tag.className='tag';tag.innerHTML='&#x26FD; '+val+' <span class="rm" data-val="'+val+'">&#x2715;</span>';tag.querySelector('.rm').onclick=function(){refuelDates.splice(refuelDates.indexOf(this.dataset.val),1);this.parentElement.remove()};wrap.appendChild(tag)}
+function addTag(val){val=val.replace(/[,;]/g,'').trim();if(!val||refuelDates.includes(val))return;if(!/^\d{1,2}[.\-\/]\d{1,2}([.\-\/]\d{2,4})?$/.test(val)){showStatus('err','\u26A0','Nieprawid\u0142owy format: '+val+'. U\u017Cyj DD.MM');return}refuelDates.push(val);const wrap=document.getElementById('refuel-tags');const tag=document.createElement('div');tag.className='tag';tag.innerHTML='&#x26FD; '+val+' <span class="rm" data-val="'+val+'">&#x2715;</span>';tag.querySelector('.rm').onclick=function(){refuelDates.splice(refuelDates.indexOf(this.dataset.val),1);this.parentElement.remove()};wrap.appendChild(tag)}
 let progIv=null;
 function startProgress(){const wrap=document.getElementById('progress');const bar=document.getElementById('pbar');wrap.classList.add('show');bar.style.width='0%';let w=0;progIv=setInterval(()=>{w=Math.min(w+Math.random()*7,88);bar.style.width=w+'%'},200)}
 function stopProgress(){clearInterval(progIv);document.getElementById('pbar').style.width='100%';setTimeout(()=>document.getElementById('progress').classList.remove('show'),500)}
 function showStatus(type,icon,msg){const el=document.getElementById('status');el.className='status '+type;document.getElementById('s-icon').textContent=icon;document.getElementById('s-msg').textContent=msg}
 async function generate(){
   const file=document.getElementById('gps_file').files[0];
-  if(!file){showStatus('err','&#x26A0;','Wybierz plik GPS.');return}
+  if(!file){showStatus('err','\u26A0','Wybierz plik GPS.');return}
   const btn=document.getElementById('btn');const spin=document.getElementById('spinner');const btxt=document.getElementById('btn-text');
   btn.disabled=true;spin.style.display='block';btxt.textContent='Przetwarzanie...';
   document.getElementById('status').className='status';
@@ -244,15 +276,15 @@ async function generate(){
     form.append('trip_purpose',document.getElementById('trip_purpose').value.trim());
     const resp=await fetch('/generate',{method:'POST',body:form});
     stopProgress();
-    if(!resp.ok){const data=await resp.json().catch(()=>({}));throw new Error(data.error||'B&#x142;&#x105;d serwera ('+resp.status+')')}
+    if(!resp.ok){const data=await resp.json().catch(()=>({}));throw new Error(data.error||'B\u0142\u0105d serwera ('+resp.status+')')}
     const blob=await resp.blob();
     const cd=resp.headers.get('Content-Disposition')||'';
     const m=cd.match(/filename[^=\n]*=(["']?)(.+?)\1/);
     const name=m?m[2]:'ewidencja.xlsx';
     const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-    showStatus('ok','&#x2713;','Plik "'+name+'" pobrany!');
-  }catch(err){stopProgress();showStatus('err','&#x2717;','B&#x142;&#x105;d: '+err.message)}
-  finally{btn.disabled=false;spin.style.display='none';btxt.textContent='&#x26A1; Generuj ewidencj&#x119; Excel'}
+    showStatus('ok','\u2713','Plik "'+name+'" pobrany!');
+  }catch(err){stopProgress();showStatus('err','\u2717','B\u0142\u0105d: '+err.message)}
+  finally{btn.disabled=false;spin.style.display='none';btxt.textContent='\u26A1 Generuj ewidencj\u0119 Excel'}
 }
 </script>
 </body>

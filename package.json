@@ -4,11 +4,20 @@
   "description": "Generator Ewidencji Przebiegu Pojazdu",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "lint": "node --check server.js && node --check src/xlsParser.js && node --check src/gpsParser.js && node --check src/excelGenerator.js",
+    "test": "node --test",
+    "docker:build": "docker build -t ewidencja-app .",
+    "docker:run": "docker run -p 8080:8080 ewidencja-app",
+    "docker:up": "npm run docker:build && npm run docker:run"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "express": "^4.18.2",
-    "multer": "^1.4.5-lts.1",
-    "exceljs": "^4.4.0"
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }
