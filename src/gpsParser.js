@@ -493,6 +493,11 @@ async function buildRoute(addresses, lastKnownCity = '') {
     const uniqueCities = [];
     let currentCity = lastKnownCity;
 
+    if (lastKnownCity) {
+        citiesSeq.push(lastKnownCity);
+        uniqueCities.push(lastKnownCity);
+    }
+
     for (const addr of addresses) {
         const { streetClean: streetRaw, cityName, cityKey } = await parseGpsAddr(addr);
 

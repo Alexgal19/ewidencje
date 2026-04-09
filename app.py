@@ -639,6 +639,10 @@ def build_route(addresses, last_known_city=""):
     
     current_city = last_known_city
     
+    if last_known_city:
+        cities_seq.append(last_known_city)
+        unique_cities.append(last_known_city)
+    
     for addr in addresses:
         street, city_name, city_key = _parse_gps_addr(addr)
         
