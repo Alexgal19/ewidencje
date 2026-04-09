@@ -1,0 +1,15 @@
+﻿
+rebase deploy
+rebase deploy
+rebase deploy --project kad
+rebase deploy --project kad
+rebase deploy --project kad
+rebase deploy --only firest
+deploy --project kadry-onli
+cloud run deploy ewidencje 
+t pull && gcloud run deploy
+n deploy ewidencje --source
+n deploy ewidencje --source
+th -Pattern "deploy|gcloud"
+
+

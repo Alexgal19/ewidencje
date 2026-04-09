@@ -234,6 +234,8 @@ def _remove_digits_from_name(text):
     text = re.sub(r'\b\d+\b', '', text)
     # Remove street prefixes
     text = re.sub(r'\b(ulica|ul\.|al\.|aleja|plac|pl\.)\s+', '', text, flags=re.IGNORECASE)
+    # Remove administrative divisions: Powiat, Gmina, Województwo (incl. abbreviations pow., gm., woj.)
+    text = re.sub(r'\b(Powiat|Gmina|Województwo|gm\.|pow\.|woj\.)\s+.*$', '', text, flags=re.IGNORECASE)
     # Collapse whitespace and strip trailing punctuation
     return ' '.join(text.split()).strip(' ,.')
 
@@ -384,10 +386,16 @@ def _parse_gps_addr(addr):
             if m_zip_city:
                 if not zip_code:
                     zip_code = m_zip_city.group(1)
+                # Prefer the city name associated with the zip code and stop looking further
                 city_name = m_zip_city.group(2).strip()
+                break
             else:
-                # It's a real city/place name (not a zip code)
-                city_name = part.strip()
+                # Only set city_name if we haven't found one yet
+                if not city_name:
+                    p = part.strip()
+                    # Skip parts that look like administrative regions
+                    if not re.match(r'^(Powiat|Gmina|Województwo|gm\.|pow\.|woj\.)', p, re.I):
+                        city_name = p
 
     if not city_name and zip_code:
         # Check cache

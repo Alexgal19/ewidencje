@@ -1,0 +1,6 @@
+=== WYNIK PARSOWANIA PRZEZ APP.PY ===
+Pojazd: Toyota, Proace (Rejestracja: DW5RC21)
+Data od: 2025-12-01
+Data do: 2025-12-31
+Liczba dni z trasami: 24
+Łączny dystans: 2653.024 km

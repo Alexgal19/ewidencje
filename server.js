@@ -405,5 +405,7 @@ app.post('/generate', upload.single('gps_file'), async (req, res) => {
 
 const PORT = parseInt(process.env.PORT, 10) || 8080;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`\n\x1b[32m✔ Server running!\x1b[0m`);
+    console.log(`\x1b[36m➜ Local:\x1b[0m    http://localhost:${PORT}`);
+    console.log(`\x1b[36m➜ Network:\x1b[0m  http://0.0.0.0:${PORT} (Docker)\n`);
 });

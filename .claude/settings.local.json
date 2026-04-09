@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(find C:UsersOHoliadynetsDesktopwebapp -maxdepth 1 -type f \\\\\\(-name .env* -o -name *.json -o -name *.yml -o -name *.yaml -o -name *.toml \\\\\\))",
+      "Bash(npx kill-port:*)",
+      "Bash(netstat -ano)",
+      "Bash(xargs -I{} taskkill /PID {} /F)",
+      "Bash(start:*)",
+      "Bash(node:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/)",
+      "Bash(curl -s -o /dev/null -w \" manifest:%{http_code}\" http://localhost:8080/manifest.json)",
+      "Bash(curl -s -o /dev/null -w \" sw:%{http_code}\" http://localhost:8080/sw.js)",
+      "Bash(curl -s -o /dev/null -w \" icon192:%{http_code}\" http://localhost:8080/icons/icon-192.png)",
+      "Bash(curl -s -o /dev/null -w \" icon512:%{http_code}\" http://localhost:8080/icons/icon-512.png)",
+      "Bash(heroku --version)",
+      "Bash(firebase --version)",
+      "Bash(gcloud config:*)",
+      "Bash(gcloud auth:*)",
+      "Bash(gcloud projects:*)",
+      "Bash(gcloud services:*)",
+      "Bash(gcloud run:*)"
+    ]
+  }
+}

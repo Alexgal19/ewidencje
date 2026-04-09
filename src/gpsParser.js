@@ -203,6 +203,8 @@ function removeDigitsFromName(text) {
     text = text.replace(/\b\d{2}-\d{3}\b/g, '');
     text = text.replace(/\b\d+\b/g, '');
     text = text.replace(/\b(ulica|ul\.|al\.|aleja|plac|pl\.)\s+/gi, '');
+    // Remove administrative divisions: Powiat, Gmina, Województwo (incl. abbreviations pow., gm., woj.)
+    text = text.replace(/\b(Powiat|Gmina|Województwo|gm\.|pow\.|woj\.)\s+.*$/gi, '');
     return text.split(/\s+/).join(' ').trim().replace(/[,.\s]+$/, '');
 }
 
@@ -251,9 +253,18 @@ async function parseGpsAddr(addr) {
             const mZC = ZIP_CITY_RE.exec(part);
             if (mZC) {
                 if (!zipCode) zipCode = mZC[1];
+                // Prefer the city name associated with the zip code and stop looking further
                 cityName = mZC[2].trim();
+                break;
             } else {
-                cityName = part.trim();
+                // Only set cityName if we haven't found one yet, to avoid overwriting with broader regions
+                if (!cityName) {
+                    const p = part.trim();
+                    // Skip parts that look like administrative regions
+                    if (!/^(Powiat|Gmina|Województwo|gm\.|pow\.|woj\.)/i.test(p)) {
+                        cityName = p;
+                    }
+                }
             }
         }
     }
