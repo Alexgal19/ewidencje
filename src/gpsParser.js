@@ -228,7 +228,7 @@ function removeDigitsFromName(text) {
     if (!text) return '';
     text = String(text);
     text = text.replace(/\b\d{2}-\d{3}\b/g, '');
-    text = text.replace(/\b\d+\b/g, '');
+    text = text.replace(/\b\d+[a-zA-Z]?\b/g, '');
     text = text.replace(/\b(ulica|ul\.|al\.|aleja|plac|pl\.)\s+/gi, '');
     // Remove administrative divisions: Powiat, Gmina, Województwo (incl. abbreviations pow., gm., woj.)
     text = text.replace(/\b(Powiat|Gmina|Województwo|gm\.|pow\.|woj\.)\s+.*$/gi, '');
@@ -261,8 +261,14 @@ async function parseGpsAddr(addr) {
     let parts = raw.split(',').map(p => p.trim()).filter(p => p);
     if (!parts.length) return { streetClean: '', cityName: '', cityKey: '' };
 
-    // POI detection
+    // POI detection: skip leading POI name when next part looks like a street
     if (parts.length >= 2 && !looksLikeStreet(parts[0]) && looksLikeStreet(parts[1])) {
+        parts = parts.slice(1);
+    }
+
+    // House-number-only detection: when parts[0] is a bare number (e.g. "1"),
+    // the real street name is in parts[1] — shift so it becomes streetRaw.
+    if (parts.length >= 2 && /^\d+[a-zA-Z]?$/.test(parts[0].trim()) && looksLikeStreet(parts[1])) {
         parts = parts.slice(1);
     }
 
@@ -287,8 +293,11 @@ async function parseGpsAddr(addr) {
                 // Only set cityName if we haven't found one yet, to avoid overwriting with broader regions
                 if (!cityName) {
                     const p = part.trim();
-                    // Skip parts that look like administrative regions
-                    if (!/^(Powiat|Gmina|Województwo|gm\.|pow\.|woj\.)/i.test(p)) {
+                    // Skip parts that look like administrative regions or street names
+                    if (
+                        !/^(Powiat|Gmina|Województwo|gm\.|pow\.|woj\.)/i.test(p) &&
+                        !looksLikeStreet(p)
+                    ) {
                         cityName = p;
                     }
                 }
@@ -629,6 +638,7 @@ module.exports = {
     daysInMonth,
     getPolishHolidays,
     getPreviousWorkingDay,
+    extractCellValue,
     parseGps,
     aggregate,
     aggregateActual,
