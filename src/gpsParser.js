@@ -6,6 +6,33 @@ const http = require('https');
 const ExcelJS = require('exceljs');
 const { xlsReadRows } = require('./xlsParser');
 
+// ── ExcelJS cell value extractor ─────────────────────────────────────────────
+
+/**
+ * Extract a plain value from an ExcelJS cell value.
+ * Handles rich text objects, formula results, hyperlinks, etc.
+ */
+function extractCellValue(v) {
+    if (v === null || v === undefined) return null;
+    if (v instanceof Date) return v;
+    if (typeof v !== 'object') return v;
+    // Rich text: { richText: [{ text: '...' }, ...] }
+    if (Array.isArray(v.richText)) {
+        return v.richText.map(rt => rt.text || '').join('');
+    }
+    // Formula result
+    if (v.result !== undefined) {
+        const r = v.result;
+        if (r instanceof Date) return r;
+        if (typeof r !== 'object') return r;
+        if (r && Array.isArray(r.richText)) return r.richText.map(rt => rt.text || '').join('');
+        return null;
+    }
+    // Hyperlink / shared string with text property
+    if (v.text !== undefined) return v.text;
+    return null;
+}
+
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
 /** Zero-pad a number to 2 digits */
@@ -316,14 +343,15 @@ async function parseGps(buffer, filename) {
 
     let rows;
     if (ext === '.xls') {
-        rows = xlsReadRows(buffer, [8, 11]);
+        rows = xlsReadRows(buffer, [5, 6, 7, 8, 9, 10, 11]);
     } else if (ext === '.xlsx') {
         const wb = new ExcelJS.Workbook();
         await wb.xlsx.load(buffer);
         const ws = wb.worksheets[0];
         rows = [];
         ws.eachRow({ includeEmpty: true }, (row) => {
-            rows.push(row.values.slice(1)); // ExcelJS rows are 1-indexed, slice off index 0
+            // Properly extract cell values, handling rich text, formulas, hyperlinks
+            rows.push(row.values.slice(1).map(extractCellValue));
         });
     } else {
         throw new Error(`Nieobsługiwany format pliku: ${ext}. Użyj .xls lub .xlsx`);
@@ -334,18 +362,53 @@ async function parseGps(buffer, filename) {
     let dateFrom = null;
     let dateTo   = null;
 
-    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    // ── Auto-detect column layout ────────────────────────────────────────────
+    // Old XLS format: date@col8, startAddr@col9,  endAddr@col12, km@col16 in Razem row
+    // New XLSX format: date@col10, startAddr@col12, endAddr@col17, km@col23 in Razem row
+    //
+    // Detect by finding first data row that has a Date object.
+    let dateCol      = 8;
+    let startAddrCol = 9;
+    let endAddrCol   = 12;
+    let kmCols       = [16, 15, 17, 14, 18]; // columns to search for km in "Razem" row
+
+    const firstDateRow = rows.find(r => r && r[10] instanceof Date);
+    if (firstDateRow) {
+        // New XLSX format detected
+        dateCol      = 10;
+        startAddrCol = 12;
+        endAddrCol   = 17;
+        kmCols       = [23, 6, 7, 8]; // km in Razem row, col23 = total distance
+        console.log('[Parser] Detected NEW XLSX format (date@col10, addr@col12/17, km@col23)');
+    } else {
+        console.log('[Parser] Detected OLD XLS format (date@col8, addr@col9/12, km@col16)');
+    }
+
+    // ── Scan header rows for metadata ───────────────────────────────────────
+    for (let i = 0; i < Math.min(rows.length, 30); i++) {
         const row = rows[i];
         if (!row || !row.length) continue;
-        const v = row[0] != null ? String(row[0]) : '';
-        if (v.includes('Data:')) {
-            const m = /(\d{4}-\d{2}-\d{2}).*?(\d{4}-\d{2}-\d{2})/.exec(v);
-            if (m) {
-                dateFrom = m[1];
-                dateTo   = m[2];
+
+        // Search all cells for date range strings
+        for (const cell of row) {
+            if (cell == null) continue;
+            const v = String(cell);
+            if (!dateFrom && v.includes('Data:')) {
+                const m = /(\d{4}-\d{2}-\d{2}).*?(\d{4}-\d{2}-\d{2})/.exec(v);
+                if (m) { dateFrom = m[1]; dateTo = m[2]; }
+            }
+            // Also detect date ranges like "01.04.2026 - 30.04.2026"
+            if (!dateFrom) {
+                const m2 = /(\d{2}\.\d{2}\.(\d{4})).*?(\d{2}\.\d{2}\.(\d{4}))/.exec(v);
+                if (m2) {
+                    const parseDMY = s => { const [d, mo, y] = s.split('.'); return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`; };
+                    dateFrom = parseDMY(m2[1]); dateTo = parseDMY(m2[3]);
+                }
             }
         }
-        if (i === 12) {
+
+        // Old-format plate/carModel detection at row 12
+        if (i === 12 && dateCol === 8) {
             carModel = row[0] != null ? String(row[0]).trim() : '';
             plate    = (row.length > 2 && row[2] != null) ? String(row[2]).trim() : '';
         }
@@ -354,48 +417,48 @@ async function parseGps(buffer, filename) {
     const dayGroups = [];
     let current = [];
 
+    console.log(`[Parser] Processing ${rows.length} rows from ${filename}`);
+
     for (const row of rows) {
-        if (!row || row.length < 17) {
-            current.push(row);
-            continue;
-        }
-        const first = row[0] != null ? String(row[0]).trim() : '';
-        if (first === 'Razem:') {
+        if (!row) continue;
+
+        // Summary row detection
+        const col0 = row[0] != null ? String(row[0]).trim() : '';
+        const col1 = row[1] != null ? String(row[1]).trim() : '';
+        const isSummary = /^(razem|suma|podsumowanie):?$/i.test(col0) || /^(razem|suma|podsumowanie):?$/i.test(col1);
+
+        if (isSummary) {
             if (current.length) {
-                // Filter rows that have a date in column index 8
-                const data = current.filter(r => {
-                    if (!r || r.length <= 12) return false;
-                    const v = r[8];
-                    return v instanceof Date;
-                });
+                const data = current.filter(r => r && r[dateCol] instanceof Date);
+
                 if (data.length) {
+                    // Grab plate from first data row if not yet set
                     if (!plate) {
                         plate = data[0][0] != null ? String(data[0][0]).trim() : '';
                     }
-                    const dateVal = data[0][8];
-                    let dateISO;
-                    if (dateVal instanceof Date) {
-                        const yr = dateVal.getUTCFullYear();
-                        const mo = dateVal.getUTCMonth() + 1;
-                        const dy = dateVal.getUTCDate();
-                        dateISO = toISO(yr, mo, dy);
-                    } else {
-                        dateISO = String(dateVal).slice(0, 10);
+
+                    const dateVal = data[0][dateCol];
+                    const dateISO = toISO(dateVal.getUTCFullYear(), dateVal.getUTCMonth() + 1, dateVal.getUTCDate());
+
+                    // Find km in the Razem row
+                    let km = 0;
+                    for (const c of kmCols) {
+                        const val = row[c];
+                        const num = typeof val === 'number' ? val : parseFloat(String(val ?? ''));
+                        if (!isNaN(num) && num > 0) { km = num; break; }
                     }
 
-                    const kmRaw = row[16];
-                    const km = (typeof kmRaw === 'number') ? kmRaw : (parseFloat(kmRaw) || 0);
-
+                    // Collect addresses from trip rows
                     const addresses = [];
                     for (const r of data) {
-                        const s = r[9];
-                        const e = r[12];
-                        if (s != null && s !== '') addresses.push(String(s));
-                        if (e != null && e !== '') addresses.push(String(e));
+                        const s = r[startAddrCol];
+                        const e = r[endAddrCol];
+                        if (s != null && String(s).trim()) addresses.push(String(s));
+                        if (e != null && String(e).trim()) addresses.push(String(e));
                     }
 
-                    const firstStart = data[0][9] != null ? String(data[0][9]) : '';
-                    const lastEnd    = data[data.length - 1][12] != null ? String(data[data.length - 1][12]) : '';
+                    const firstStart = data[0][startAddrCol] != null ? String(data[0][startAddrCol]) : '';
+                    const lastEnd    = data[data.length - 1][endAddrCol] != null ? String(data[data.length - 1][endAddrCol]) : '';
 
                     dayGroups.push({ date: dateISO, km, addresses, firstStart, lastEnd });
                 }
@@ -404,6 +467,19 @@ async function parseGps(buffer, filename) {
         } else {
             current.push(row);
         }
+    }
+
+    // Derive dateFrom/dateTo from actual trip dates if header scan didn't find them
+    if (!dateFrom && dayGroups.length) {
+        const sorted = [...dayGroups].sort((a, b) => a.date.localeCompare(b.date));
+        dateFrom = sorted[0].date;
+        dateTo   = sorted[sorted.length - 1].date;
+    }
+
+    if (dayGroups.length === 0) {
+        console.warn(`[Parser] Warning: No GPS data found in ${filename}. Checked ${rows.length} rows.`);
+    } else {
+        console.log(`[Parser] Successfully extracted ${dayGroups.length} days of data.`);
     }
 
     return { plate, carModel, dateFrom, dateTo, dayGroups };
