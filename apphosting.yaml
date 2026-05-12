@@ -1,0 +1,5 @@
+runConfig:
+  runtime: nodejs22
+  cpu: 1
+  memoryMiB: 512
+  concurrency: 80

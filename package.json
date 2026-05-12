@@ -11,7 +11,8 @@
     "docker:build": "docker build -t ewidencja-app .",
     "docker:run": "docker run -p 8080:8080 ewidencja-app",
     "docker:up": "npm run docker:build && npm run docker:run",
-    "build": "node gen-icons.js && .\\.venv\\Scripts\\pyinstaller.exe --noconfirm GeneratorEwidencji.spec",
+    "build": "node gen-icons.js",
+    "build:exe": "node gen-icons.js && .\\.venv\\Scripts\\pyinstaller.exe --noconfirm GeneratorEwidencji.spec",
     "deploy": "gcloud run deploy ewidencja --source . --project=ewidecja --region=europe-central2 --platform=managed --allow-unauthenticated --port=8080 --memory=512Mi --timeout=60"
   },
   "dependencies": {
