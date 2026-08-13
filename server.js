@@ -1,11 +1,14 @@
 'use strict';
 
+require('dotenv').config();
+
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
 
 const { parseGps, aggregate, aggregateActual, getPreviousWorkingDay } = require('./src/gpsParser');
 const { generateExcel } = require('./src/excelGenerator');
+const { saveGeneratedReport } = require('./src/supabase');
 
 const app    = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -386,6 +389,28 @@ app.post('/generate', upload.single('gps_file'), async (req, res) => {
             driver, odometer, refuelSet, agg,
             tripPurpose
         );
+
+        const totalKm = [...agg.values()].reduce((sum, item) => sum + Number(item.km || 0), 0);
+        const totalKmRounded = Math.round(totalKm * 100) / 100;
+
+        try {
+            const reportData = {
+                driver_name: driver,
+                plate: plate || '',
+                car_model: carModel || '',
+                date_from: dateFrom || null,
+                date_to: dateTo || null,
+                odometer_start: odometer,
+                odometer_end: Number(odometer) + Number(totalKmRounded),
+                total_km: totalKmRounded,
+                trip_purpose: tripPurpose,
+                file_name: path.basename(filename, path.extname(filename)) + '.xlsx',
+                status: 'generated',
+            };
+            await saveGeneratedReport(reportData);
+        } catch (supabaseError) {
+            console.warn('[Supabase] Report save skipped:', String(supabaseError && supabaseError.message ? supabaseError.message : supabaseError));
+        }
 
         const baseName = path.basename(filename, path.extname(filename));
         const outName  = `${baseName}.xlsx`;
