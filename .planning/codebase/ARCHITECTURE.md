@@ -7,10 +7,11 @@
 **Overall:** Single-process Express web application — upload-process-download pipeline with no persistent state between requests.
 
 **Key Characteristics:**
-- Stateless HTTP request/response: each `POST /generate` is fully self-contained
-- No database; all data lives in request memory (multer `memoryStorage`)
+- Stateless HTTP request/response: each `POST /generate` is fully self-contained (history persistence to Supabase is a best-effort side effect)
+- Auth layer on all `/api/*` routes and `/generate` (Supabase Bearer token)
+- No database at rest on the server; user data lives in Supabase (PostgreSQL + Storage)
 - All business logic is synchronous/async Node.js; no worker threads, queues, or background jobs
-- The UI is a single inline HTML string served from `server.js`; no template engine, no static file directory
+- The UI is served as a static `public/index.html` (express.static) with inline JS; no template engine
 - Output is a binary XLSX buffer streamed directly as a file download
 
 ## Layers

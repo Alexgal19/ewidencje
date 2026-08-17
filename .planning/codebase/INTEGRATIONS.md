@@ -17,10 +17,15 @@
 ## Data Storage
 
 **Databases:**
-- None
+- Supabase (PostgreSQL) – `src/supabase.js`, `src/apiRoutes.js`, schema in `supabase/schema.sql`
+  - Tables: `vehicles`, `drivers`, `ewidencje` (history of generated reports), all scoped per user (`user_id`) with RLS policies
+  - Server-side client uses the `service_role` key (`SUPABASE_SERVICE_ROLE_KEY`); frontend uses the public anon key via `GET /api/config`
+  - Access token verification via `supabase.auth.getUser(token)` middleware `requireAuth`
+  - Required env vars: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (see `.env.example`)
 
 **File Storage:**
-- No persistent cloud storage
+- Supabase Storage, private bucket `ewidencje`, files at `{user_id}/{file_name}`
+  - Generated `.xlsx` files uploaded by the server (`saveEwidencja`), downloads via signed URLs (1 h) returned by `GET /api/ewidencje`
 - Input files are received as in-memory `Buffer` via `multer` and never written to disk
 - Output `.xlsx` files are streamed directly in the HTTP response (`res.send(xlsBuf)`)
 - Optional local file: `known_cities.json` written to `process.cwd()` by `src/gpsParser.js` to cache ZIP-to-city lookups across requests; committed to the repo's working directory at runtime
@@ -47,7 +52,7 @@
 
 ## Authentication & Identity
 
-**Auth Provider:** None — the application has no authentication layer. All endpoints are publicly accessible.
+**Auth Provider:** Supabase Auth (email/password) – client-side session via `@supabase/supabase-js` (CDN) in `public/index.html`; server verifies Bearer tokens with the service-role client (`requireAuth` in `src/supabase.js`). All `/api/*` routes and `POST /generate` require authentication. When Supabase env vars are missing, the API returns HTTP 503.
 
 ## Monitoring & Observability
 
@@ -74,12 +79,13 @@
 
 ## Environment Configuration
 
-**Required env vars:** None strictly required — the server starts without any env vars set.
+**Required env vars:** None strictly required — the server starts without any env vars set (Supabase features disabled, API returns 503).
 
 **Optional env vars:**
 - `PORT` — TCP port to listen on (defaults to `8080`)
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — enable auth, DB and Storage (see `.env.example`)
 
-**Secrets location:** None — no API keys, credentials, or secrets are used.
+**Secrets location:** `.env` (gitignored) – loaded via `dotenv`; `SUPABASE_SERVICE_ROLE_KEY` is server-only.
 
 ---
 

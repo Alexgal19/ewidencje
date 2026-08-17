@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ewidencja Przebiegu Pojazdu &#x2013; Smart Work</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#FF5724">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ewidencja">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── Fonts (sw-house.pl) ─────────────────────────────────────────────── */
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url(/fonts/space-grotesk-v22-latin.woff2) format("woff2");unicode-range:u+00??,u+0131,u+0152-0153,u+02bb-02bc,u+02c6,u+02da,u+02dc,u+0304,u+0308,u+0329,u+2000-206f,u+20ac,u+2122,u+2191,u+2193,u+2212,u+2215,u+feff,u+fffd}
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url(/fonts/space-grotesk-v22-latin-ext.woff2) format("woff2");unicode-range:u+0100-02ba,u+02bd-02c5,u+02c7-02cc,u+02ce-02d7,u+02dd-02ff,u+0304,u+0308,u+0329,u+1d00-1dbf,u+1e00-1e9f,u+1ef2-1eff,u+2020,u+20a0-20ab,u+20ad-20c0,u+2113,u+2c60-2c7f,u+a720-a7ff}
+@font-face{font-family:'Hanken Grotesk';font-style:normal;font-weight:100 900;font-display:swap;src:url(/fonts/hanken-grotesk-v12-latin.woff2) format("woff2");unicode-range:u+00??,u+0131,u+0152-0153,u+02bb-02bc,u+02c6,u+02da,u+02dc,u+0304,u+0308,u+0329,u+2000-206f,u+20ac,u+2122,u+2191,u+2193,u+2212,u+2215,u+feff,u+fffd}
+@font-face{font-family:'Hanken Grotesk';font-style:normal;font-weight:100 900;font-display:swap;src:url(/fonts/hanken-grotesk-v12-latin-ext.woff2) format("woff2");unicode-range:u+0100-02ba,u+02bd-02c5,u+02c7-02cc,u+02ce-02d7,u+02dd-02ff,u+0304,u+0308,u+0329,u+1d00-1dbf,u+1e00-1e9f,u+1ef2-1eff,u+2020,u+20a0-20ab,u+20ad-20c0,u+2113,u+2c60-2c7f,u+a720-a7ff}
+
+/* ── Design tokens (sw-house.pl) ─────────────────────────────────────── */
+:root{
+  --background:#303030;--surface:#262626;--card:#FFFFFF;--card-foreground:#0A0A0B;
+  --border:#E5E5E5;--primary:#FF5724;--primary-hover:#E64A1F;--primary-soft:rgba(255,87,36,.1);
+  --secondary:#404040;--muted:#A6A6A6;--muted-2:#6B7280;--success:#16A34A;--warning:#F59E0B;--err:#EF4444;
+  --radius:0.8rem;
+  --font-display:'Space Grotesk','Arial',sans-serif;
+  --font-body:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--background);color:#FFFFFF;font-family:var(--font-body),system-ui,sans-serif;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px 60px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 700px 500px at 20% 10%,rgba(255,87,36,.06) 0%,transparent 60%),radial-gradient(ellipse 600px 400px at 80% 80%,rgba(255,87,36,.04) 0%,transparent 60%);pointer-events:none;z-index:0}
+h1,h2,h3,h4{font-family:var(--font-display);font-weight:700;line-height:1.25}
+.wrap{width:100%;max-width:720px;position:relative;z-index:1;animation:up .5s ease}
+@keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.header{margin-bottom:28px}
+.header-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.logo{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.logo-icon{width:52px;height:52px;border-radius:var(--radius);background:linear-gradient(135deg,rgba(255,87,36,.28),rgba(255,255,255,.25));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.45);display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 8px 24px rgba(255,87,36,.3),inset 0 1px 1px rgba(255,255,255,.6);flex-shrink:0}
+.logo-text{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--primary);font-weight:600;font-family:var(--font-display)}
+h1{font-size:28px;font-weight:700;color:#FFFFFF;letter-spacing:-.01em}
+.subtitle{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6}
+.user-info{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.user-info .email{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link-btn{background:none;border:1px solid rgba(255,87,36,.45);color:var(--primary);cursor:pointer;font-size:12px;font-weight:600;padding:6px 12px;border-radius:0.55rem;font-family:var(--font-body)}
+.link-btn:hover{background:var(--primary-soft)}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab{flex:1;min-width:120px;padding:11px 14px;background:rgba(38,38,38,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.12);color:var(--muted);font-size:13px;font-weight:600;border-radius:0.6rem;cursor:pointer;transition:all .18s;font-family:var(--font-body)}
+.tab:hover{color:#FFFFFF;background:rgba(255,255,255,.12)}
+.tab.active{background:var(--primary);color:#FFFFFF;box-shadow:0 6px 18px rgba(255,87,36,.3)}
+.card{background:rgba(255,255,255,.82);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);border:1px solid rgba(255,255,255,.35);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;transition:box-shadow .2s,border-color .2s;box-shadow:0 8px 32px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.65)}
+.card:focus-within{border-color:var(--primary)}
+.card-head{padding:16px 22px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.card-head .icon{width:32px;height:32px;border-radius:0.55rem;background:var(--primary-soft);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.card-head-text h3{font-size:14px;font-weight:700;color:var(--card-foreground);font-family:var(--font-display)}
+.card-head-text p{font-size:11px;color:var(--muted-2);margin-top:1px}
+.card-body{padding:18px 22px 20px;color:var(--card-foreground)}
+.upload-zone{border:2px dashed rgba(0,0,0,.18);border-radius:0.65rem;padding:28px 20px;cursor:pointer;text-align:center;transition:all .22s;position:relative;background:rgba(255,255,255,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--primary);background:rgba(255,87,36,.04)}
+.upload-zone.has-file{border-color:var(--primary);border-style:solid;background:rgba(255,87,36,.06)}
+.upload-icon{font-size:32px;margin-bottom:8px;display:block}
+.upload-title{font-size:14px;font-weight:600;color:var(--card-foreground)}
+.upload-hint{font-size:11px;color:var(--muted-2);margin-top:4px;font-family:Consolas,monospace}
+.upload-badge{display:none;margin-top:10px;background:var(--primary-soft);color:var(--primary);border:1px solid rgba(255,87,36,.35);border-radius:20px;padding:3px 10px;font-size:11px;font-family:Consolas,monospace}
+.has-file .upload-badge{display:inline-block}
+.has-file .upload-hint{color:var(--primary)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:500px){.grid2{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;font-weight:600;color:var(--muted-2);letter-spacing:.05em;text-transform:uppercase;font-family:var(--font-display)}
+.field input,.field select{background:#FFFFFF;border:1.5px solid #D1D5DB;border-radius:0.55rem;padding:11px 14px;color:var(--card-foreground);font-family:var(--font-body);font-size:13px;outline:none;transition:border-color .18s,box-shadow .18s;width:100%}
+.field input:focus,.field select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(255,87,36,.15)}
+.field input::placeholder{color:#9CA3AF}
+.field select option{background:#FFFFFF;color:var(--card-foreground)}
+.refuel-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;min-height:32px}
+.tag{display:flex;align-items:center;gap:6px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);color:#B45309;border-radius:20px;padding:4px 10px 4px 12px;font-size:12px;animation:tagIn .2s ease}
+@keyframes tagIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+.tag .rm{cursor:pointer;opacity:.7;font-size:14px}
+.tag .rm:hover{opacity:1;color:var(--err)}
+.refuel-hint{font-size:11px;color:var(--muted-2);margin-top:6px}
+.btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--primary),var(--primary-hover));color:#FFFFFF;font-size:15px;font-weight:700;letter-spacing:.02em;border:none;border-radius:var(--radius);cursor:pointer;transition:all .22s;display:flex;align-items:center;justify-content:center;gap:10px;position:relative;overflow:hidden;font-family:var(--font-display);box-shadow:0 8px 26px rgba(255,87,36,.28),inset 0 1px 0 rgba(255,255,255,.35)}
+.btn:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(255,87,36,.35)}
+.btn:active{transform:translateY(0)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-sm{width:auto;padding:9px 16px;font-size:13px;border-radius:0.6rem;flex-shrink:0}
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#FFFFFF;border-radius:50%;animation:spin .7s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress{height:4px;background:var(--border);border-radius:2px;margin-top:14px;overflow:hidden;display:none}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--primary),#FF9A6B);border-radius:2px;width:0%;transition:width .4s}
+.progress.show{display:block}
+.status{display:none;margin-top:14px;border-radius:0.65rem;padding:14px 16px;font-size:13px;animation:up .3s ease;align-items:flex-start;gap:10px}
+.status.ok{display:flex;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.35);color:#15803D;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.status.err{display:flex;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);color:#B91C1C;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.status .si{font-size:18px;flex-shrink:0}
+.info-box{display:flex;gap:10px;align-items:flex-start;background:rgba(38,38,38,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:var(--radius);padding:12px 16px;margin-top:16px;font-size:12px;color:var(--muted);line-height:1.6}
+.install-btn{display:none;width:100%;padding:13px;background:rgba(255,255,255,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:var(--primary);font-size:13px;font-weight:600;letter-spacing:.03em;border:1.5px solid rgba(255,87,36,.45);border-radius:var(--radius);cursor:pointer;transition:all .22s;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;font-family:var(--font-display)}
+.install-btn:hover{background:var(--primary-soft);border-color:var(--primary)}
+.install-btn.visible{display:flex}
+#view-login{min-height:calc(100vh - 92px);display:flex;align-items:center;justify-content:center}
+.login-logo{display:flex;align-items:center;justify-content:center;margin-bottom:22px}
+.sw-badge{width:112px;height:112px;border-radius:26px;background:linear-gradient(135deg,rgba(255,87,36,.2),rgba(255,255,255,.3));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.55);box-shadow:0 12px 32px rgba(255,87,36,.22),inset 0 1px 1px rgba(255,255,255,.65);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--primary);letter-spacing:.02em}
+.login-card{max-width:560px;width:100%;margin:0}
+.login-card .card-body{padding:44px 46px 40px;color:var(--card-foreground)}
+.login-card .field input{padding:14px 16px;font-size:15px}
+.login-card .btn{padding:17px;font-size:16px}
+.login-title{font-size:26px;font-weight:700;text-align:center;margin-bottom:8px;color:var(--card-foreground);font-family:var(--font-display);letter-spacing:-.01em}
+.login-sub{font-size:14px;color:var(--muted-2);text-align:center;margin-bottom:30px}
+.auth-toggle{text-align:center;margin-top:20px;font-size:14px;color:var(--muted-2)}
+.auth-toggle button{background:none;border:none;color:var(--primary);font-weight:700;cursor:pointer;font-size:13px;padding:4px}
+.auth-toggle button:hover{text-decoration:underline}
+.empty{font-size:13px;color:var(--muted-2);text-align:center;padding:28px 10px}
+.list-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--card-foreground)}
+.list-item:first-child{border-top:none}
+.list-item .li-info{flex:1;min-width:0}
+.list-item .li-title{font-weight:600;color:var(--card-foreground);font-size:13px}
+.list-item .li-sub{font-size:11px;color:var(--muted-2);margin-top:2px}
+.del-btn{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.4);color:#B91C1C;border-radius:0.55rem;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0}
+.del-btn:hover{background:rgba(239,68,68,.15)}
+.dl-btn{background:var(--primary-soft);border:1px solid rgba(255,87,36,.4);color:var(--primary);border-radius:0.55rem;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;flex-shrink:0}
+.dl-btn:hover{background:rgba(255,87,36,.18)}
+.form-row{display:flex;gap:10px;margin-bottom:14px}
+.form-row .field{flex:1}
+.form-row .field.fixed{flex:0 0 auto}
+@media(max-width:500px){.form-row{flex-direction:column}.form-row .field.fixed{flex:1}}
+.check-line{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--card-foreground);font-weight:600}
+.check-line input{width:18px;height:18px;accent-color:var(--primary)}
+.muted-note{font-size:11px;color:var(--muted-2);margin-top:8px;line-height:1.6}
+.muted-note strong{color:var(--card-foreground)}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── LOGOWANIE ─────────────────────────────────────────────────────── -->
+  <div id="view-login">
+    <div class="card login-card">
+      <div class="card-body">
+        <div class="login-logo">
+          <div class="sw-badge">
+            <span>SW</span>
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="#FF5724" aria-label="car">
+              <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+            </svg>
+          </div>
+        </div>
+        <div class="login-title">Ewidencja Przebiegu Pojazdu</div>
+        <div class="login-sub">Smart Work Sp. z o.o. &middot; zaloguj si&#x119;, aby kontynuowa&#263;</div>
+        <div class="field" style="margin-bottom:14px">
+          <label>E-MAIL</label>
+          <input type="email" id="auth_email" placeholder="np. jan.kowalski@firma.pl" autocomplete="email">
+        </div>
+        <div class="field" style="margin-bottom:20px">
+          <label>HAS&#x141;O</label>
+          <input type="password" id="auth_password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password">
+        </div>
+        <button class="btn" id="auth_btn" onclick="doAuth()"><span id="auth_btn_text">&#x1F512; Zaloguj si&#x119;</span></button>
+        <div class="status" id="auth_status"><div class="si"></div><div></div></div>
+        <div class="auth-toggle" id="auth_toggle">
+          Nie masz konta? <button onclick="toggleAuthMode()">Zarejestruj si&#x119;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── APLIKACJA ─────────────────────────────────────────────────────── -->
+  <div id="view-app" hidden>
+    <div class="header">
+      <div class="header-row">
+        <div class="logo" style="margin-bottom:0">
+          <div class="logo-icon">&#x1F697;</div>
+          <div>
+            <div class="logo-text">Smart Work Sp. z o.o.</div>
+          </div>
+        </div>
+        <div class="user-info">
+          <span class="email" id="user-email"></span>
+          <button class="link-btn" onclick="logout()">Wyloguj</button>
+        </div>
+      </div>
+      <h1>Generator Ewidencji<br>Przebiegu Pojazdu</h1>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-generate" onclick="switchTab('generate')">&#x26A1; Generuj</button>
+      <button class="tab" id="tab-history" onclick="switchTab('history')">&#x1F4C1; Historia</button>
+      <button class="tab" id="tab-db" onclick="switchTab('db')">&#x1F4E6; Pojazdy i kierowcy</button>
+    </div>
+
+    <!-- ── GENERUJ ── -->
+    <div id="view-generate">
+      <div class="card" id="gps-card">
+        <div class="card-head">
+          <div class="icon">&#x1F4CD;</div>
+          <div class="card-head-text">
+            <h3>Plik GPS</h3>
+            <p>Raport z trackera pojazdu (.XLS lub .XLSX)</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="upload-zone" id="zone">
+            <input type="file" id="gps_file" accept=".xls,.xlsx" onchange="handleFile(this)">
+            <span class="upload-icon">&#x1F4C2;</span>
+            <div class="upload-title" id="file-title">Kliknij lub przeci&#x105;gnij plik tutaj</div>
+            <div class="upload-hint" id="file-hint">.XLS &#xB7; .XLSX &#xB7; max 50 MB</div>
+            <div class="upload-badge" id="file-badge">&#x2713; plik wgrany</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="icon">&#x1F464;</div>
+          <div class="card-head-text">
+            <h3>Dane kierowcy</h3>
+            <p>Imi&#x119; i nazwisko pojawi si&#x119; we wszystkich wierszach z km</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="grid2">
+            <div class="field">
+              <label>POJAZD (OPCJONALNIE)</label>
+              <select id="vehicle_select" onchange="onVehicleChange()">
+                <option value="">&#x2014; wybierz z bazy &#x2014;</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>KIEROWCA Z BAZY (OPCJONALNIE)</label>
+              <select id="driver_select" onchange="onDriverChange()">
+                <option value="">&#x2014; wybierz z bazy &#x2014;</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>NAZWISKO I IMI&#x118;</label>
+              <input type="text" id="driver_name" placeholder="np. Kowalski Jan" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>STAN LICZNIKA NA POCZ&#x104;TKU MIESI&#x104;CA (KM)</label>
+              <input type="number" id="odometer_start" placeholder="np. 248349" min="0">
+            </div>
+          </div>
+          <div class="field" style="margin-top:14px">
+            <label>CEL WYJAZDU</label>
+            <input type="text" id="trip_purpose" placeholder="np. dow&#xF3;z/odbi&#xF3;r pracownik&#xF3;w" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="target-korekta-card">
+        <div class="card-head">
+          <div class="icon">&#x1F3AF;</div>
+          <div class="card-head-text">
+            <h3>Korekta ko&#x144;cowego przebiegu (Opcjonalnie)</h3>
+            <p>Wpisz r&#x119;cznie docelowy stan licznika, aby zr&#xF3;wna&#x107; trasy</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="grid2">
+            <div class="field">
+              <label>DOCELOWY STAN LICZNIKA KO&#x141;COWY</label>
+              <input type="number" id="target_odometer" placeholder="np. 250000" min="0">
+            </div>
+            <div class="field" style="justify-content:flex-end;padding-bottom:8px">
+              <label class="check-line">
+                <input type="checkbox" id="adjust_mileage" checked>
+                Podci&#x105;gnij trasy, aby zr&#xF3;wna&#x107;
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="icon">&#x26FD;</div>
+          <div class="card-head-text">
+            <h3>Dni tankowania</h3>
+            <p>Wpisz daty &#x2013; pojawi&#x105; si&#x119; w kolumnie Uwagi jako "tankowanie"</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label>WPISZ DAT&#x118; I NACI&#x15A;NIJ ENTER LUB SPACJ&#x118;</label>
+            <input type="text" id="refuel_input" placeholder="np. 5.12 lub 05.12.2025" autocomplete="off">
+          </div>
+          <div class="refuel-wrap" id="refuel-tags"></div>
+          <div class="refuel-hint">&#x1F4CC; Format: DD.MM lub DD.MM.RRRR &nbsp;|&nbsp; Mo&#x17C;esz doda&#x107; wiele dat</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="icon">&#x1F4C5;</div>
+          <div class="card-head-text">
+            <h3>Tryb zapisu przebiegu</h3>
+            <p>Wybierz jak maj&#x105; by&#x107; przypisane kilometry w ewidencji</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <label class="check-line">
+            <input type="checkbox" id="use_actual_days">
+            Zapisz przebieg w faktycznych dniach jazdy (bez przesuwania na pi&#x105;tek)
+          </label>
+          <p class="muted-note">
+            <strong>Domy&#x15B;lnie (odznaczone):</strong> km z weekendu/&#x15B;wi&#x105;t &#x2192; poprzedni pi&#x105;tek roboczy.<br>
+            <strong>Po zaznaczeniu:</strong> km zapisane dok&#x142;adnie w dniu, w kt&#xF3;rym je&#x17A;dzi&#x142;o auto.
+          </p>
+        </div>
+      </div>
+
+      <button class="install-btn" id="install-btn" onclick="installApp()">&#x2B07; Zainstaluj aplikacj&#x119; na urz&#x105;dzeniu</button>
+      <button class="btn" id="btn" onclick="generate()">
+        <div class="spinner" id="spinner"></div>
+        <span id="btn-text">&#x26A1; Generuj ewidencj&#x119; Excel</span>
+      </button>
+      <div class="progress" id="progress"><div class="progress-bar" id="pbar"></div></div>
+      <div class="status" id="status"><div class="si" id="s-icon"></div><div id="s-msg"></div></div>
+
+      <div class="info-box">
+        <div style="font-size:16px;flex-shrink:0">&#x1F4A1;</div>
+        <div>Aplikacja odczytuje dane GPS, sumuje kilometry per dzie&#x144; i tworzy plik Excel. Ka&#x17C;da wygenerowana ewidencja jest zapisywana w historii (Supabase). Weekendy automatycznie sumowane na pi&#x105;tek. <strong style="color:#FF5724">Nie wymaga LibreOffice.</strong></div>
+      </div>
+    </div>
+
+    <!-- ── HISTORIA ── -->
+    <div id="view-history" hidden>
+      <div class="card">
+        <div class="card-head">
+          <div class="icon">&#x1F4C1;</div>
+          <div class="card-head-text">
+            <h3>Historia ewidencji</h3>
+            <p>Wszystkie wygenerowane pliki (zapisane w Supabase)</p>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div id="history-list"><div class="empty">&#x23F3; &#x141;adowanie...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── POJAZDY I KIEROWCY ── -->
+    <div id="view-db" hidden>
+      <div class="card">
+        <div class="card-head">
+          <div class="icon">&#x1F4E6;</div>
+          <div class="card-head-text">
+            <h3>Dodaj pojazd</h3>
+            <p>Pojawi si&#x119; w li&#x15B;cie wyboru w formularzu generowania</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="field">
+              <label>NUMER REJESTRACYJNY</label>
+              <input type="text" id="new_plate" placeholder="np. DSW3318E" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>MARKA</label>
+              <input type="text" id="new_make" placeholder="np. Opel" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>MODEL</label>
+              <input type="text" id="new_model" placeholder="np. Vivaro" autocomplete="off">
+            </div>
+            <div class="field fixed">
+              <label>&nbsp;</label>
+              <button class="btn btn-sm" onclick="addVehicle()">&#x2B; Dodaj</button>
+            </div>
+          </div>
+          <div id="vehicle-list"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div class="icon">&#x1F464;</div>
+          <div class="card-head-text">
+            <h3>Dodaj kierowc&#x119;</h3>
+            <p>Pojawi si&#x119; w li&#x15B;cie wyboru w formularzu generowania</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="field">
+              <label>IMI&#x118; I NAZWISKO</label>
+              <input type="text" id="new_driver" placeholder="np. Kowalski Jan" autocomplete="off">
+            </div>
+            <div class="field fixed">
+              <label>&nbsp;</label>
+              <button class="btn btn-sm" onclick="addDriver()">&#x2B; Dodaj</button>
+            </div>
+          </div>
+          <div id="driver-list"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+// ── PWA ──────────────────────────────────────────────────────────────────────
+let _installPrompt=null;
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+}
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();_installPrompt=e;
+  document.getElementById('install-btn').classList.add('visible');
+});
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('install-btn').classList.remove('visible');
+  _installPrompt=null;
+});
+function installApp(){
+  if(!_installPrompt)return;
+  _installPrompt.prompt();
+  _installPrompt.userChoice.then(()=>{_installPrompt=null;document.getElementById('install-btn').classList.remove('visible')});
+}
+
+// ── Supabase client ──────────────────────────────────────────────────────────
+let supabaseClient=null;
+let currentUser=null;
+
+async function initSupabase(){
+  const cfg=await (await fetch('/api/config')).json();
+  supabaseClient=supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+  supabaseClient.auth.onAuthStateChange((_evt,session)=>{
+    currentUser=session?session.user:null;
+    if(currentUser){
+      showApp();
+    }else{
+      showLogin();
+    }
+  });
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  currentUser=session?session.user:null;
+  if(currentUser){showApp();}else{showLogin();}
+}
+
+function showLogin(){document.getElementById('view-login').hidden=false;document.getElementById('view-app').hidden=true}
+function showApp(){
+  document.getElementById('view-login').hidden=true;
+  document.getElementById('view-app').hidden=false;
+  document.getElementById('user-email').textContent=currentUser.email||'';
+  switchTab('generate');
+  loadVehicles();loadDrivers();loadHistory();
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+let authMode='login';
+function toggleAuthMode(){
+  authMode=authMode==='login'?'register':'login';
+  document.getElementById('auth_btn_text').textContent=authMode==='login'?'\u{1F512} Zaloguj si\u0119':'\u2728 Utw\u00F3rz konto';
+  document.getElementById('auth_toggle').innerHTML=authMode==='login'
+    ?'Nie masz konta? <button onclick="toggleAuthMode()">Zarejestruj si\u0119</button>'
+    :'Masz ju\u017C konto? <button onclick="toggleAuthMode()">Zaloguj si\u0119</button>';
+  const st=document.getElementById('auth_status');st.className='status';st.style.display='none';
+}
+async function doAuth(){
+  const email=document.getElementById('auth_email').value.trim();
+  const password=document.getElementById('auth_password').value;
+  const st=document.getElementById('auth_status');
+  const show=(type,icon,msg)=>{st.className='status '+type;st.querySelector('.si').textContent=icon;st.querySelector('div:last-child').textContent=msg};
+  if(!email||!password){show('err','\u26A0','Podaj e-mail i has\u0142o.');return}
+  const btn=document.getElementById('auth_btn');btn.disabled=true;
+  try{
+    if(authMode==='login'){
+      const {error}=await supabaseClient.auth.signInWithPassword({email,password});
+      if(error)throw new Error(error.message);
+    }else{
+      const {error}=await supabaseClient.auth.signUp({email,password});
+      if(error)throw new Error(error.message);
+      show('ok','\u2713','Konto utworzone. Sprawd\u017A e-mail, aby potwierdzi\u0107 rejestracj\u0119 (je\u015Bli wymagane), potem zaloguj si\u0119.');
+    }
+  }catch(err){show('err','\u2717','B\u0142\u0105d: '+err.message)}
+  finally{btn.disabled=false}
+}
+async function logout(){
+  await supabaseClient.auth.signOut();
+  showLogin();
+}
+
+// ── API helper ───────────────────────────────────────────────────────────────
+async function api(path,opts={}){
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(!session)throw new Error('Brak sesji');
+  const res=await fetch(path,{...opts,headers:{...opts.headers,'Authorization':'Bearer '+session.access_token}});
+  if(res.status===401){logout();throw new Error('Sesja wygas\u0142a')}
+  if(!res.ok){const d=await res.json().catch(()=>({}));throw new Error(d.error||'B\u0142\u0105d serwera ('+res.status+')')}
+  return res;
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('view-generate').hidden=name!=='generate';
+  document.getElementById('view-history').hidden=name!=='history';
+  document.getElementById('view-db').hidden=name!=='db';
+  if(name==='history')loadHistory();
+  if(name==='db'){loadVehicles();loadDrivers()}
+}
+
+// ── Vehicles / drivers ───────────────────────────────────────────────────────
+let vehicles=[],drivers=[];
+async function loadVehicles(){
+  vehicles=await api('/api/vehicles').then(r=>r.json());
+  const sel=document.getElementById('vehicle_select');
+  const prev=sel.value;
+  sel.innerHTML='<option value="">\u2014 wybierz z bazy \u2014</option>'+vehicles.map(v=>'<option value="'+v.id+'">'+escapeHtml(v.plate)+(v.make||v.model?' \u00B7 '+[v.make,v.model].filter(Boolean).join(' '):'')+'</option>').join('');
+  if(prev)sel.value=prev;
+  renderVehicleList();
+}
+async function addVehicle(){
+  const plate=document.getElementById('new_plate').value.trim();
+  const make=document.getElementById('new_make').value.trim();
+  const model=document.getElementById('new_model').value.trim();
+  if(!plate){showStatus('err','\u26A0','Podaj numer rejestracyjny.');return}
+  try{
+    await api('/api/vehicles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plate,make,model})});
+    document.getElementById('new_plate').value='';document.getElementById('new_make').value='';document.getElementById('new_model').value='';
+    await loadVehicles();
+  }catch(err){showStatus('err','\u2717',err.message)}
+}
+async function delVehicle(id){
+  if(!confirm('Usun\u0105\u0107 ten pojazd z bazy?'))return;
+  try{await api('/api/vehicles/'+id,{method:'DELETE'});await loadVehicles();}
+  catch(err){showStatus('err','\u2717',err.message)}
+}
+function renderVehicleList(){
+  const el=document.getElementById('vehicle-list');
+  el.innerHTML=vehicles.length?'':'<div class="empty">Brak pojazd\u00F3w w bazie \u2013 dodaj pierwszy powy\u017Cej.</div>';
+  for(const v of vehicles){
+    const row=document.createElement('div');row.className='list-item';
+    row.innerHTML='<div class="li-info"><div class="li-title">'+escapeHtml(v.plate)+'</div><div class="li-sub">'+escapeHtml([v.make,v.model].filter(Boolean).join(' ')||'\u2013')+'</div></div><button class="del-btn" onclick="delVehicle(\''+v.id+'\')">Usu\u0144</button>';
+    el.appendChild(row);
+  }
+}
+function onVehicleChange(){}
+
+async function loadDrivers(){
+  drivers=await api('/api/drivers').then(r=>r.json());
+  const sel=document.getElementById('driver_select');
+  const prev=sel.value;
+  sel.innerHTML='<option value="">\u2014 wybierz z bazy \u2014</option>'+drivers.map(d=>'<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>').join('');
+  if(prev)sel.value=prev;
+  renderDriverList();
+}
+async function addDriver(){
+  const name=document.getElementById('new_driver').value.trim();
+  if(!name){showStatus('err','\u26A0','Podaj imi\u0119 i nazwisko.');return}
+  try{
+    await api('/api/drivers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+    document.getElementById('new_driver').value='';
+    await loadDrivers();
+  }catch(err){showStatus('err','\u2717',err.message)}
+}
+async function delDriver(id){
+  if(!confirm('Usun\u0105\u0107 tego kierowc\u0119 z bazy?'))return;
+  try{await api('/api/drivers/'+id,{method:'DELETE'});await loadDrivers();}
+  catch(err){showStatus('err','\u2717',err.message)}
+}
+function renderDriverList(){
+  const el=document.getElementById('driver-list');
+  el.innerHTML=drivers.length?'':'<div class="empty">Brak kierowc\u00F3w w bazie \u2013 dodaj pierwszego powy\u017Cej.</div>';
+  for(const d of drivers){
+    const row=document.createElement('div');row.className='list-item';
+    row.innerHTML='<div class="li-info"><div class="li-title">'+escapeHtml(d.name)+'</div></div><button class="del-btn" onclick="delDriver(\''+d.id+'\')">Usu\u0144</button>';
+    el.appendChild(row);
+  }
+}
+function onDriverChange(){
+  const sel=document.getElementById('driver_select');
+  const d=drivers.find(x=>x.id===sel.value);
+  if(d)document.getElementById('driver_name').value=d.name;
+}
+
+// ── History ──────────────────────────────────────────────────────────────────
+async function loadHistory(){
+  const el=document.getElementById('history-list');
+  try{
+    const items=await api('/api/ewidencje').then(r=>r.json());
+    if(!items.length){el.innerHTML='<div class="empty">Brak wygenerowanych ewidencji.</div>';return}
+    el.innerHTML='';
+    for(const it of items){
+      const row=document.createElement('div');row.className='list-item';
+      const period=(it.period_start||'?')+' \u2192 '+(it.period_end||'?');
+      const sub=[it.plate,it.car_model,it.driver_name].filter(Boolean).join(' \u00B7 ')||period;
+      const km=it.total_km!=null?Number(it.total_km).toLocaleString('pl-PL')+' km':'';
+      const created=it.created_at?new Date(it.created_at).toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'}):'';
+      row.innerHTML=
+        '<div class="li-info"><div class="li-title">'+escapeHtml(sub)+'</div>'+
+        '<div class="li-sub">'+escapeHtml(period)+(km?' &middot; '+escapeHtml(km):'')+(created?' &middot; '+escapeHtml(created):'')+'</div></div>'+
+        (it.download_url?'<a class="dl-btn" href="'+it.download_url+'" target="_blank" rel="noopener">&#x2B07; Pobierz</a>':'')+
+        '<button class="del-btn" onclick="delEwidencja(\''+it.id+'\')">Usu\u0144</button>';
+      el.appendChild(row);
+    }
+  }catch(err){
+    el.innerHTML='<div class="empty">B\u0142\u0105d \u0142adowania historii: '+escapeHtml(err.message)+'</div>';
+  }
+}
+async function delEwidencja(id){
+  if(!confirm('Usun\u0105\u0107 t\u0119 ewidencj\u0119 z historii?'))return;
+  try{await api('/api/ewidencje/'+id,{method:'DELETE'});await loadHistory();}
+  catch(err){showStatus('err','\u2717',err.message)}
+}
+
+// ── App (generate) ───────────────────────────────────────────────────────────
+const refuelDates=[];
+const zone=document.getElementById('zone');
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag')});
+zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));
+zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');if(e.dataTransfer.files.length){document.getElementById('gps_file').files=e.dataTransfer.files;handleFile(document.getElementById('gps_file'))}});
+function handleFile(input){if(input.files&&input.files[0]){const name=input.files[0].name;zone.classList.add('has-file');document.getElementById('file-title').textContent=name;document.getElementById('file-hint').textContent=(input.files[0].size/1024/1024).toFixed(2)+' MB';document.getElementById('file-badge').textContent='\u2713 '+name;document.getElementById('gps-card').style.borderColor='rgba(255,87,36,.6)'}}
+document.getElementById('refuel_input').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '||e.key===','){e.preventDefault();const v=e.target.value.trim();if(v){addTag(v);e.target.value=''}}});
+document.getElementById('refuel_input').addEventListener('blur',e=>{const v=e.target.value.trim();if(v){addTag(v);e.target.value=''}});
+function addTag(val){val=val.replace(/[,;]/g,'').trim();if(!val||refuelDates.includes(val))return;if(!/^\d{1,2}[.\-\/]\d{1,2}([.\-\/]\d{2,4})?$/.test(val)){showStatus('err','\u26A0','Nieprawid\u0142owy format: '+val+'. U\u017Cyj DD.MM');return}refuelDates.push(val);const wrap=document.getElementById('refuel-tags');const tag=document.createElement('div');tag.className='tag';tag.innerHTML='&#x26FD; '+val+' <span class="rm" data-val="'+val+'">&#x2715;</span>';tag.querySelector('.rm').onclick=function(){refuelDates.splice(refuelDates.indexOf(this.dataset.val),1);this.parentElement.remove()};wrap.appendChild(tag)}
+let progIv=null;
+function startProgress(){const wrap=document.getElementById('progress');const bar=document.getElementById('pbar');wrap.classList.add('show');bar.style.width='0%';let w=0;progIv=setInterval(()=>{w=Math.min(w+Math.random()*7,88);bar.style.width=w+'%'},200)}
+function stopProgress(){clearInterval(progIv);document.getElementById('pbar').style.width='100%';setTimeout(()=>document.getElementById('progress').classList.remove('show'),500)}
+function showStatus(type,icon,msg){const el=document.getElementById('status');el.className='status '+type;document.getElementById('s-icon').textContent=icon;document.getElementById('s-msg').textContent=msg}
+async function generate(){
+  const file=document.getElementById('gps_file').files[0];
+  if(!file){showStatus('err','\u26A0','Wybierz plik GPS.');return}
+  const btn=document.getElementById('btn');const spin=document.getElementById('spinner');const btxt=document.getElementById('btn-text');
+  btn.disabled=true;spin.style.display='block';btxt.textContent='Przetwarzanie...';
+  document.getElementById('status').className='status';
+  startProgress();
+  try{
+    const form=new FormData();
+    form.append('gps_file',file);
+    form.append('driver_name',document.getElementById('driver_name').value);
+    form.append('odometer_start',document.getElementById('odometer_start').value||'0');
+    form.append('refuel_dates',refuelDates.join(','));
+    form.append('target_odometer',document.getElementById('target_odometer').value||'0');
+    form.append('adjust_mileage',document.getElementById('adjust_mileage').checked);
+    form.append('use_actual_days',document.getElementById('use_actual_days').checked);
+    form.append('trip_purpose',document.getElementById('trip_purpose').value.trim());
+    form.append('vehicle_id',document.getElementById('vehicle_select').value);
+    form.append('driver_id',document.getElementById('driver_select').value);
+    const {data:{session}}=await supabaseClient.auth.getSession();
+    const resp=await fetch('/generate',{method:'POST',headers:{'Authorization':'Bearer '+session.access_token},body:form});
+    stopProgress();
+    if(!resp.ok){const data=await resp.json().catch(()=>({}));throw new Error(data.error||'B\u0142\u0105d serwera ('+resp.status+')')}
+    const blob=await resp.blob();
+    const cd=resp.headers.get('Content-Disposition')||'';
+    const m=cd.match(/filename[^=\n]*=(["']?)(.+?)\1/);
+    const name=m?m[2]:'ewidencja.xlsx';
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    showStatus('ok','\u2713','Plik "'+name+'" pobrany i zapisany w historii!');
+    loadHistory();
+  }catch(err){stopProgress();showStatus('err','\u2717','B\u0142\u0105d: '+err.message)}
+  finally{btn.disabled=false;spin.style.display='none';btxt.textContent='\u26A1 Generuj ewidencj\u0119 Excel'}
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+initSupabase().catch(err=>{
+  const st=document.getElementById('auth_status');
+  st.className='status err';st.querySelector('.si').textContent='\u2717';
+  st.querySelector('div:last-child').textContent='B\u0142\u0105d inicjalizacji: '+err.message;
+});
+</script>
+</body>
+</html>

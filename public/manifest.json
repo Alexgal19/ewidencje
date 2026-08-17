@@ -4,8 +4,8 @@
   "description": "Generator ewidencji przebiegu pojazdu z raportów GPS",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0B1120",
-  "theme_color": "#10B981",
+  "background_color": "#303030",
+  "theme_color": "#FF5724",
   "orientation": "any",
   "icons": [
     {

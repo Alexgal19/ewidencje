@@ -28,7 +28,7 @@ function chunk(type, data) {
 }
 
 function makePNG(size) {
-  // Draw rounded rect with gradient-like green and a white "E" letter
+  // Draw rounded rect with gradient-like orange and a white car silhouette
   const rows = [];
   const cx = size / 2, cy = size / 2, r = size * 0.218;
 
@@ -42,13 +42,13 @@ function makePNG(size) {
       const inside = dist <= r;
 
       if (!inside) {
-        row.push(11, 17, 32, 0); // transparent bg (#0B1120)
+        row.push(48, 48, 48, 0); // transparent bg (#303030)
       } else {
-        // Gradient: top-left #10B981 → bottom-right #065F46
+        // Gradient: top-left #FF5724 → bottom-right #C63A10
         const t = (x + y) / (size * 2);
-        const R = Math.round(16  + (6  - 16)  * t);
-        const G = Math.round(185 + (95 - 185) * t);
-        const B = Math.round(129 + (70 - 129) * t);
+        const R = Math.round(255 + (198 - 255) * t);
+        const G = Math.round(87  + (58  - 87)  * t);
+        const B = Math.round(36  + (16  - 36)  * t);
 
         // Draw a simple white car silhouette (basic pixel art, 40% of icon size)
         const carSize = size * 0.55;
