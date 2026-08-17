@@ -138,7 +138,7 @@ h1{font-size:28px;font-weight:700;color:#FFFFFF;letter-spacing:-.01em}
 /* ── Modal podglądu Excel ──────────────────────────────────────────────── */
 .modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(15,15,15,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px}
 .modal.open{display:flex}
-.modal-box{background:rgba(255,255,255,.95);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);border:1px solid rgba(255,255,255,.4);border-radius:var(--radius);box-shadow:0 20px 60px rgba(0,0,0,.4);width:100%;max-width:980px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-box{background:rgba(255,255,255,.95);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);border:1px solid rgba(255,255,255,.4);border-radius:var(--radius);box-shadow:0 20px 60px rgba(0,0,0,.4);width:100%;max-width:98vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
 .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border)}
 .modal-head h3{font-size:15px;color:var(--card-foreground);font-family:var(--font-display)}
 .modal-close{background:none;border:none;font-size:22px;color:var(--muted-2);cursor:pointer;line-height:1;padding:4px 8px;border-radius:0.5rem}
@@ -148,8 +148,8 @@ h1{font-size:28px;font-weight:700;color:#FFFFFF;letter-spacing:-.01em}
 .sheet-tab.active{background:var(--primary);color:#FFFFFF;border-color:var(--primary)}
 .modal-body{flex:1;min-height:0;overflow:auto;padding:16px 20px 20px;scrollbar-width:thin}
 .xl-table{width:100%;border-collapse:collapse;font-size:12.5px;color:var(--card-foreground);background:#FFFFFF}
-.xl-table th,.xl-table td{border:1px solid #E5E5E5;padding:6px 10px;text-align:left;white-space:nowrap}
-.xl-table th{background:#F6F6F6;font-weight:700;position:sticky;top:0}
+.xl-table th,.xl-table td{border:1px solid #E5E5E5;padding:6px 10px;text-align:left;word-wrap:break-word;overflow-wrap:break-word;white-space:normal}
+.xl-table th{background:#F6F6F6;font-weight:700;position:sticky;top:0;white-space:nowrap}
 .xl-table tr:nth-child(even) td{background:#FAFAFA}
 .xl-num{font-variant-numeric:tabular-nums}
 .form-row{display:flex;gap:10px;margin-bottom:14px}
@@ -773,7 +773,7 @@ function openPreview(url,name){
     if(!r.ok)throw new Error('Nie mo\u017Cna pobra\u0107 pliku ('+r.status+')');
     return r.arrayBuffer();
   }).then(buf=>{
-    _xlWorkbook=XLSX.read(buf,{type:'array'});
+    _xlWorkbook=XLSX.read(buf,{type:'array',cellDates:true});
     _xlSheets=_xlWorkbook.SheetNames;
     renderSheet(0);
   }).catch(err=>{
@@ -792,12 +792,25 @@ function renderSheet(idx){
     tabs.appendChild(b);
   });
   const ws=_xlWorkbook.Sheets[_xlSheets[idx]];
-  const html=XLSX.utils.sheet_to_html(ws,{header:'',footer:''});
-  const wrap=document.createElement('div');
-  wrap.innerHTML=html;
-  const table=wrap.querySelector('table');
-  if(table){table.className='xl-table'}
-  document.getElementById('xl-body').innerHTML=wrap.innerHTML;
+  const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  let html='<table class="xl-table">';
+  data.forEach((row,ri)=>{
+    html+=ri===0?'<thead><tr>':'<tr>';
+    row.forEach(cell=>{
+      const tag=ri===0?'th':'td';
+      let v=cell;
+      if(v instanceof Date){
+        const dd=String(v.getUTCDate()).padStart(2,'0');
+        const mm=String(v.getUTCMonth()+1).padStart(2,'0');
+        const yy=v.getUTCFullYear();
+        v=dd+'.'+mm+'.'+yy;
+      }
+      html+='<'+tag+'>'+(v||'')+'</'+tag+'>';
+    });
+    html+=ri===0?'</tr></thead>':'</tr>';
+  });
+  html+='</table>';
+  document.getElementById('xl-body').innerHTML=html;
 }
 function closePreview(){
   document.getElementById('xl-modal').classList.remove('open');
