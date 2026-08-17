@@ -3,3 +3,11 @@ runConfig:
   cpu: 1
   memoryMiB: 512
   concurrency: 80
+
+env:
+  - variable: SUPABASE_URL
+    value: https://bayxybrbcuxjxfjzgdsm.supabase.co
+  - variable: SUPABASE_ANON_KEY
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJheXh5YnJiY3V4anhmanpnZHNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2Mjk1NzYsImV4cCI6MjEwMjIwNTU3Nn0.qTqJrIIaUvWwNS0AboSfstPyvVvdqMOYiIBLelt3Sak
+  - variable: SUPABASE_SERVICE_ROLE_KEY
+    secret: SUPABASE_SERVICE_ROLE_KEY
