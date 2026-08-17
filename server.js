@@ -1,16 +1,55 @@
 'use strict';
 
+require('dotenv').config();
+
 const express = require('express');
 const multer  = require('multer');
 const path    = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
 const { parseGps, aggregate, aggregateActual, getPreviousWorkingDay } = require('./src/gpsParser');
 const { generateExcel } = require('./src/excelGenerator');
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
+const supabase = supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+    })
+    : null;
 
 const app    = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/health', async (req, res) => {
+    const base = {
+        ok: true,
+        app: 'ewidencja-przebiegu',
+        supabase: {
+            enabled: Boolean(supabase),
+            connected: false,
+            error: null
+        }
+    };
+
+    if (!supabase) {
+        return res.json(base);
+    }
+
+    try {
+        const { error } = await supabase.auth.getSession();
+        base.supabase.connected = !error;
+        base.supabase.error = error ? error.message : null;
+        return res.json(base);
+    } catch (err) {
+        base.ok = false;
+        base.supabase.connected = false;
+        base.supabase.error = String(err && err.message ? err.message : err);
+        return res.status(500).json(base);
+    }
+});
 
 // ── HTML page (verbatim from app.py) ─────────────────────────────────────────
 
