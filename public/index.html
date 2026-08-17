@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="Ewidencja">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 /* ── Fonts (sw-house.pl) ─────────────────────────────────────────────── */
 @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url(/fonts/space-grotesk-v22-latin.woff2) format("woff2");unicode-range:u+00??,u+0131,u+0152-0153,u+02bb-02bc,u+02c6,u+02da,u+02dc,u+0304,u+0308,u+0329,u+2000-206f,u+20ac,u+2122,u+2191,u+2193,u+2212,u+2215,u+feff,u+fffd}
@@ -132,6 +133,25 @@ h1{font-size:28px;font-weight:700;color:#FFFFFF;letter-spacing:-.01em}
 .del-btn:hover{background:rgba(239,68,68,.15)}
 .dl-btn{background:var(--primary-soft);border:1px solid rgba(255,87,36,.4);color:var(--primary);border-radius:0.55rem;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;flex-shrink:0}
 .dl-btn:hover{background:rgba(255,87,36,.18)}
+.pv-btn{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.4);color:#2563EB;border-radius:0.55rem;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0}
+.pv-btn:hover{background:rgba(59,130,246,.18)}
+/* ── Modal podglądu Excel ──────────────────────────────────────────────── */
+.modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(15,15,15,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px}
+.modal.open{display:flex}
+.modal-box{background:rgba(255,255,255,.95);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);border:1px solid rgba(255,255,255,.4);border-radius:var(--radius);box-shadow:0 20px 60px rgba(0,0,0,.4);width:100%;max-width:980px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border)}
+.modal-head h3{font-size:15px;color:var(--card-foreground);font-family:var(--font-display)}
+.modal-close{background:none;border:none;font-size:22px;color:var(--muted-2);cursor:pointer;line-height:1;padding:4px 8px;border-radius:0.5rem}
+.modal-close:hover{background:rgba(0,0,0,.06);color:var(--card-foreground)}
+.modal-sheets{display:flex;gap:6px;padding:10px 20px 0;flex-wrap:wrap}
+.sheet-tab{border:1px solid var(--border);background:#FFFFFF;color:var(--muted-2);font-size:12px;font-weight:600;padding:6px 12px;border-radius:0.5rem 0.5rem 0 0;cursor:pointer}
+.sheet-tab.active{background:var(--primary);color:#FFFFFF;border-color:var(--primary)}
+.modal-body{flex:1;min-height:0;overflow:auto;padding:16px 20px 20px;scrollbar-width:thin}
+.xl-table{width:100%;border-collapse:collapse;font-size:12.5px;color:var(--card-foreground);background:#FFFFFF}
+.xl-table th,.xl-table td{border:1px solid #E5E5E5;padding:6px 10px;text-align:left;white-space:nowrap}
+.xl-table th{background:#F6F6F6;font-weight:700;position:sticky;top:0}
+.xl-table tr:nth-child(even) td{background:#FAFAFA}
+.xl-num{font-variant-numeric:tabular-nums}
 .form-row{display:flex;gap:10px;margin-bottom:14px}
 .form-row .field{flex:1}
 .form-row .field.fixed{flex:0 0 auto}
@@ -678,6 +698,7 @@ async function loadHistory(){
       row.innerHTML=
         '<div class="li-info"><div class="li-title">'+escapeHtml(sub)+'</div>'+
         '<div class="li-sub">'+escapeHtml(period)+(km?' &middot; '+escapeHtml(km):'')+(created?' &middot; '+escapeHtml(created):'')+'</div></div>'+
+        (it.download_url?'<button class="pv-btn" onclick="openPreview(\''+it.download_url+'\',\''+escapeHtml(it.file_name||'ewidencja.xlsx')+'\')">&#x1F4CA; Podgl\u0105d</button>':'')+
         (it.download_url?'<a class="dl-btn" href="'+it.download_url+'" target="_blank" rel="noopener">&#x2B07; Pobierz</a>':'')+
         '<button class="del-btn" onclick="delEwidencja(\''+it.id+'\')">Usu\u0144</button>';
       el.appendChild(row);
@@ -739,6 +760,50 @@ async function generate(){
   finally{btn.disabled=false;spin.style.display='none';btxt.textContent='\u26A1 Generuj ewidencj\u0119 Excel'}
 }
 
+// ── Podgląd Excel ─────────────────────────────────────────────────────────
+let _xlSheets=[],_xlCurrent=0,_xlWorkbook=null;
+function openPreview(url,name){
+  const modal=document.getElementById('xl-modal');
+  const body=document.getElementById('xl-body');
+  document.getElementById('xl-title').textContent=name||'Podgląd';
+  modal.classList.add('open');
+  body.innerHTML='<div class="empty">&#x23F3; &#x141;adowanie pliku...</div>';
+  document.getElementById('xl-sheets').innerHTML='';
+  fetch(url).then(r=>{
+    if(!r.ok)throw new Error('Nie mo\u017Cna pobra\u0107 pliku ('+r.status+')');
+    return r.arrayBuffer();
+  }).then(buf=>{
+    _xlWorkbook=XLSX.read(buf,{type:'array'});
+    _xlSheets=_xlWorkbook.SheetNames;
+    renderSheet(0);
+  }).catch(err=>{
+    body.innerHTML='<div class="empty">'+(err.message||'B\u0142\u0105d')+'</div>';
+  });
+}
+function renderSheet(idx){
+  _xlCurrent=idx;
+  const tabs=document.getElementById('xl-sheets');
+  tabs.innerHTML='';
+  _xlSheets.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.className='sheet-tab'+(i===idx?' active':'');
+    b.textContent=s;
+    b.onclick=()=>renderSheet(i);
+    tabs.appendChild(b);
+  });
+  const ws=_xlWorkbook.Sheets[_xlSheets[idx]];
+  const html=XLSX.utils.sheet_to_html(ws,{header:'',footer:''});
+  const wrap=document.createElement('div');
+  wrap.innerHTML=html;
+  const table=wrap.querySelector('table');
+  if(table){table.className='xl-table'}
+  document.getElementById('xl-body').innerHTML=wrap.innerHTML;
+}
+function closePreview(){
+  document.getElementById('xl-modal').classList.remove('open');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePreview()});
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function escapeHtml(s){
   return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -749,5 +814,16 @@ initSupabase().catch(err=>{
   st.querySelector('div:last-child').textContent='B\u0142\u0105d inicjalizacji: '+err.message;
 });
 </script>
+
+<div class="modal" id="xl-modal" onclick="if(event.target===this)closePreview()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="xl-title">Podgl&#x105;d</h3>
+      <button class="modal-close" onclick="closePreview()" aria-label="Zamknij">&#x2715;</button>
+    </div>
+    <div class="modal-sheets" id="xl-sheets"></div>
+    <div class="modal-body" id="xl-body"></div>
+  </div>
+</div>
 </body>
 </html>
