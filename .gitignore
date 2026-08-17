@@ -8,6 +8,8 @@ dist/
 *.spec
 *.egg-info/
 .env
+firebase-debug.log
+DSW*.xls
 known_cities.json
 result.txt
 routes_utf8.txt
