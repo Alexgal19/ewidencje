@@ -425,7 +425,11 @@ let supabaseClient=null;
 let currentUser=null;
 
 async function initSupabase(){
-  const cfg=await (await fetch('/api/config')).json();
+  const resp=await fetch('/api/config');
+  const cfg=await resp.json();
+  if(!resp.ok||!cfg.supabaseUrl||!cfg.supabaseAnonKey){
+    throw new Error(cfg.error||'Brak konfiguracji Supabase z serwera (/api/config)');
+  }
   supabaseClient=supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
   supabaseClient.auth.onAuthStateChange((_evt,session)=>{
     currentUser=session?session.user:null;

@@ -1,4 +1,4 @@
-const CACHE = 'ewidencja-v3';
+const CACHE = 'ewidencja-v5';
 const SHELL = ['/'];
 
 self.addEventListener('install', e => {
@@ -18,6 +18,12 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   // Pass through POST requests (file upload/generate) — never cache
   if (e.request.method !== 'GET') return;
+  // Only handle http(s) requests (ignore chrome-extension:// and friends)
+  if (!/^https?:$/.test(new URL(e.request.url).protocol)) return;
+  // Only cache same-origin assets
+  if (new URL(e.request.url).origin !== self.location.origin) return;
+  // Never cache API responses (auth/config) — stale config breaks the app
+  if (new URL(e.request.url).pathname.startsWith('/api/')) return;
 
   e.respondWith(
     fetch(e.request)
