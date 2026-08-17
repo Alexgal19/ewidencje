@@ -39,9 +39,22 @@ app.get('/health', async (req, res) => {
     }
 
     try {
-        const { error } = await supabase.auth.getSession();
-        base.supabase.connected = !error;
-        base.supabase.error = error ? error.message : null;
+        const healthUrl = new URL('/auth/v1/health', supabaseUrl.endsWith('/') ? supabaseUrl : `${supabaseUrl}/`);
+        const response = await fetch(healthUrl.toString(), {
+            headers: {
+                apikey: supabaseAnonKey,
+                Authorization: 'Bearer ' + supabaseAnonKey,
+            }
+        });
+
+        base.supabase.connected = response.ok;
+        if (!response.ok) {
+            const text = await response.text();
+            base.supabase.error = text || `HTTP ${response.status}`;
+            return res.status(response.status).json(base);
+        }
+
+        base.supabase.error = null;
         return res.json(base);
     } catch (err) {
         base.ok = false;
