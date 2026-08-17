@@ -12,6 +12,7 @@ const {
     listVehicles,
     createVehicle,
     deleteVehicle,
+    getLastEwidencjaForVehicle,
     listDrivers,
     createDriver,
     deleteDriver,
@@ -76,6 +77,15 @@ router.delete('/vehicles/:id', requireAuth, async (req, res) => {
     try {
         await deleteVehicle(req.user.id, req.params.id);
         res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/vehicles/:id/last', requireAuth, async (req, res) => {
+    try {
+        const row = await getLastEwidencjaForVehicle(req.user.id, req.params.id);
+        res.json(row || { odometerEnd: null, driverName: null });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

@@ -111,6 +111,11 @@ h1{font-size:28px;font-weight:700;color:#FFFFFF;letter-spacing:-.01em}
 .login-card{max-width:560px;width:100%;margin:0}
 .login-card .card-body{padding:44px 46px 40px;color:var(--card-foreground)}
 .login-card .field input{padding:14px 16px;font-size:15px}
+.btn-google{width:100%;padding:15px;background:#FFFFFF;color:#1F2937;font-size:15.5px;font-weight:600;border:1.5px solid #D1D5DB;border-radius:var(--radius);cursor:pointer;transition:all .22s;display:flex;align-items:center;justify-content:center;gap:10px;font-family:var(--font-display);box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.btn-google:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.16)}
+.btn-google:active{transform:translateY(0)}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted-2);font-size:13px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 .login-card .btn{padding:17px;font-size:16px}
 .login-title{font-size:26px;font-weight:700;text-align:center;margin-bottom:8px;color:var(--card-foreground);font-family:var(--font-display);letter-spacing:-.01em}
 .login-sub{font-size:14px;color:var(--muted-2);text-align:center;margin-bottom:30px}
@@ -205,6 +210,16 @@ h1{font-size:31px}
           <input type="password" id="auth_password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password">
         </div>
         <button class="btn" id="auth_btn" onclick="doAuth()"><span id="auth_btn_text">&#x1F512; Zaloguj si&#x119;</span></button>
+        <div class="auth-divider">lub</div>
+        <button class="btn-google" id="google_btn" onclick="googleLogin()">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-label="Google">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          Zaloguj przez Google
+        </button>
         <div class="status" id="auth_status"><div class="si"></div><div></div></div>
         <div class="auth-toggle" id="auth_toggle">
           Nie masz konta? <button onclick="toggleAuthMode()">Zarejestruj si&#x119;</button>
@@ -295,28 +310,12 @@ h1{font-size:31px}
           </div>
           <div class="field" style="margin-top:14px">
             <label>CEL WYJAZDU</label>
-            <input type="text" id="trip_purpose" placeholder="np. dow&#xF3;z/odbi&#xF3;r pracownik&#xF3;w" autocomplete="off">
+            <input type="text" id="trip_purpose" list="trip_purposes" placeholder="Wybierz lub wpisz cel wyjazdu" autocomplete="off">
+            <datalist id="trip_purposes">
+              <option value="Odbi&#xF3;r/dow&#xF3;z podwykonawc&#xF3;w do miejsca &#x15B;wiadczenia us&#x142;ug">
+              <option value="Spotkanie z podwykonawcami">
+            </datalist>
           </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <div class="icon">&#x1F4C5;</div>
-          <div class="card-head-text">
-            <h3>Tryb zapisu przebiegu</h3>
-            <p>Wybierz jak maj&#x105; by&#x107; przypisane kilometry w ewidencji</p>
-          </div>
-        </div>
-        <div class="card-body">
-          <label class="check-line">
-            <input type="checkbox" id="use_actual_days">
-            Zapisz przebieg w faktycznych dniach jazdy (bez przesuwania na pi&#x105;tek)
-          </label>
-          <p class="muted-note">
-            <strong>Domy&#x15B;lnie (odznaczone):</strong> km z weekendu/&#x15B;wi&#x105;t &#x2192; poprzedni pi&#x105;tek roboczy.<br>
-            <strong>Po zaznaczeniu:</strong> km zapisane dok&#x142;adnie w dniu, w kt&#xF3;rym je&#x17A;dzi&#x142;o auto.
-          </p>
         </div>
       </div>
 
@@ -366,26 +365,6 @@ h1{font-size:31px}
           </div>
           <div class="refuel-wrap" id="refuel-tags"></div>
           <div class="refuel-hint">&#x1F4CC; Format: DD.MM lub DD.MM.RRRR &nbsp;|&nbsp; Mo&#x17C;esz doda&#x107; wiele dat</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <div class="icon">&#x1F4C5;</div>
-          <div class="card-head-text">
-            <h3>Tryb zapisu przebiegu</h3>
-            <p>Wybierz jak maj&#x105; by&#x107; przypisane kilometry w ewidencji</p>
-          </div>
-        </div>
-        <div class="card-body">
-          <label class="check-line">
-            <input type="checkbox" id="use_actual_days">
-            Zapisz przebieg w faktycznych dniach jazdy (bez przesuwania na pi&#x105;tek)
-          </label>
-          <p class="muted-note">
-            <strong>Domy&#x15B;lnie (odznaczone):</strong> km z weekendu/&#x15B;wi&#x105;t &#x2192; poprzedni pi&#x105;tek roboczy.<br>
-            <strong>Po zaznaczeniu:</strong> km zapisane dok&#x142;adnie w dniu, w kt&#xF3;rym je&#x17A;dzi&#x142;o auto.
-          </p>
         </div>
       </div>
 
@@ -568,6 +547,18 @@ async function logout(){
   showLogin();
 }
 
+async function googleLogin(){
+  const st=document.getElementById('auth_status');
+  const show=(type,icon,msg)=>{st.className='status '+type;st.querySelector('.si').textContent=icon;st.querySelector('div:last-child').textContent=msg};
+  try{
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+    if(error)throw new Error(error.message);
+  }catch(err){show('err','\u2717','B\u0142\u0105d: '+err.message)}
+}
+
 // ── API helper ───────────────────────────────────────────────────────────────
 async function api(path,opts={}){
   const {data:{session}}=await supabaseClient.auth.getSession();
@@ -624,7 +615,15 @@ function renderVehicleList(){
     el.appendChild(row);
   }
 }
-function onVehicleChange(){}
+async function onVehicleChange(){
+  const vid=document.getElementById('vehicle_select').value;
+  if(!vid)return;
+  try{
+    const data=await api('/api/vehicles/'+encodeURIComponent(vid)+'/last').then(r=>r.json());
+    if(data.odometerEnd){document.getElementById('odometer_start').value=data.odometerEnd}
+    if(data.driverName){document.getElementById('driver_name').value=data.driverName}
+  }catch(err){showStatus('err','\u26A0',err.message)}
+}
 
 async function loadDrivers(){
   drivers=await api('/api/drivers').then(r=>r.json());
@@ -722,7 +721,6 @@ async function generate(){
     form.append('refuel_dates',refuelDates.join(','));
     form.append('target_odometer',document.getElementById('target_odometer').value||'0');
     form.append('adjust_mileage',document.getElementById('adjust_mileage').checked);
-    form.append('use_actual_days',document.getElementById('use_actual_days').checked);
     form.append('trip_purpose',document.getElementById('trip_purpose').value.trim());
     form.append('vehicle_id',document.getElementById('vehicle_select').value);
     form.append('driver_id',document.getElementById('driver_select').value);

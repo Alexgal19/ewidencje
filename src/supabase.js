@@ -93,6 +93,21 @@ async function getVehicle(userId, id) {
     return data || null;
 }
 
+/** Latest ewidencja row for a vehicle (last odometer + last driver). */
+async function getLastEwidencjaForVehicle(userId, vehicleId) {
+    if (!vehicleId) return null;
+    const { data, error } = await getSupabaseAdmin()
+        .from('ewidencje')
+        .select('odometer_end, driver_name, period_end')
+        .eq('user_id', userId)
+        .eq('vehicle_id', vehicleId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data || null;
+}
+
 // ── Drivers ──────────────────────────────────────────────────────────────────
 
 async function listDrivers(userId) {
@@ -243,6 +258,7 @@ module.exports = {
     createVehicle,
     deleteVehicle,
     getVehicle,
+    getLastEwidencjaForVehicle,
     listDrivers,
     createDriver,
     deleteDriver,
