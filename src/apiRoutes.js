@@ -85,7 +85,12 @@ router.delete('/vehicles/:id', requireAuth, async (req, res) => {
 router.get('/vehicles/:id/last', requireAuth, async (req, res) => {
     try {
         const row = await getLastEwidencjaForVehicle(req.user.id, req.params.id);
-        res.json(row || { odometerEnd: null, driverName: null });
+        if (!row) return res.json({ odometerEnd: null, driverName: null });
+        res.json({
+            odometerEnd: row.odometer_end ?? null,
+            driverName: row.driver_name ?? null,
+            periodEnd: row.period_end ?? null,
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
