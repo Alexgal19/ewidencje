@@ -132,11 +132,110 @@ function xlsReadRows(xlsBytes, dateCols = [8, 11]) {
 
     // ── BIFF8 record parser ───────────────────────────────────────────────────
     const cells = new Map(); // key: `${r},${c}` → value
-    const sst   = [];
+    let sst   = [];
     let pos     = 0;
     const sd    = stream;
 
     function cellKey(r, c) { return r * 65536 + c; }
+
+    function parseSST(records) {
+        if (!records.length || records[0].length < 8) return [];
+        let recIdx = 0;
+        let rec = records[0];
+        let p = 8;
+        const total = rec.readUInt32LE(0);
+        const count = rec.readUInt32LE(4);
+        const sstArr = [];
+
+        for (let i = 0; i < count; i++) {
+            if (p + 3 > rec.length) {
+                if (recIdx + 1 < records.length) {
+                    recIdx++;
+                    rec = records[recIdx];
+                    p = 0;
+                } else {
+                    break;
+                }
+            }
+            if (p + 3 > rec.length) break;
+
+            const cch = rec.readUInt16LE(p);
+            const flags = rec[p + 2];
+            p += 3;
+
+            let rich = 0;
+            if (flags & 8) {
+                if (p + 2 > rec.length && recIdx + 1 < records.length) {
+                    recIdx++;
+                    rec = records[recIdx];
+                    p = 0;
+                }
+                if (p + 2 <= rec.length) {
+                    rich = rec.readUInt16LE(p);
+                    p += 2;
+                }
+            }
+            if (flags & 4) {
+                if (p + 4 > rec.length && recIdx + 1 < records.length) {
+                    recIdx++;
+                    rec = records[recIdx];
+                    p = 0;
+                }
+                if (p + 4 <= rec.length) {
+                    p += 4;
+                }
+            }
+
+            let isUnicode = !!(flags & 1);
+            let charsLeft = cch;
+            const strParts = [];
+
+            while (charsLeft > 0) {
+                const bytesPerChar = isUnicode ? 2 : 1;
+                const availableBytes = rec.length - p;
+                const charsInThisRec = Math.min(charsLeft, Math.floor(availableBytes / bytesPerChar));
+
+                if (charsInThisRec > 0) {
+                    const bytesToRead = charsInThisRec * bytesPerChar;
+                    const chunk = rec.slice(p, p + bytesToRead);
+                    strParts.push(chunk.toString(isUnicode ? 'utf16le' : 'latin1'));
+                    p += bytesToRead;
+                    charsLeft -= charsInThisRec;
+                }
+
+                if (charsLeft > 0) {
+                    if (recIdx + 1 < records.length) {
+                        recIdx++;
+                        rec = records[recIdx];
+                        p = 0;
+                        if (rec.length > 0) {
+                            isUnicode = !!(rec[0] & 1);
+                            p = 1;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            let richBytesLeft = rich * 4;
+            while (richBytesLeft > 0) {
+                const avail = rec.length - p;
+                const toSkip = Math.min(richBytesLeft, avail);
+                p += toSkip;
+                richBytesLeft -= toSkip;
+                if (richBytesLeft > 0 && recIdx + 1 < records.length) {
+                    recIdx++;
+                    rec = records[recIdx];
+                    p = 0;
+                }
+            }
+
+            sstArr.push(strParts.join(''));
+        }
+
+        return sstArr;
+    }
 
     while (pos + 4 <= sd.length) {
         const rt  = sd.readUInt16LE(pos);
@@ -146,34 +245,13 @@ function xlsReadRows(xlsBytes, dateCols = [8, 11]) {
 
         // ── SST ──────────────────────────────────────────────────────────────
         if (rt === 0x00FC) {
-            const sstFull = rec;
-            if (sstFull.length < 8) continue;
-            const count = sstFull.readUInt32LE(4);
-            let p2 = 8;
-            for (let idx = 0; idx < count; idx++) {
-                if (p2 + 3 > sstFull.length) break;
-                const cch   = sstFull.readUInt16LE(p2);
-                const flags = sstFull[p2 + 2];
-                p2 += 3;
-                const comp = !(flags & 1);
-                let rich = 0;
-                if ((flags & 8) && p2 + 2 <= sstFull.length) {
-                    rich = sstFull.readUInt16LE(p2);
-                    p2 += 2;
-                }
-                if ((flags & 4) && p2 + 4 <= sstFull.length) {
-                    p2 += 4;
-                }
-                const blen = cch * (comp ? 1 : 2);
-                let s = '';
-                try {
-                    s = sstFull.slice(p2, p2 + blen).toString(comp ? 'latin1' : 'utf16le');
-                } catch (e) {
-                    s = '';
-                }
-                p2 += blen + rich * 4;
-                sst.push(s);
+            const sstRecs = [rec];
+            while (pos + 4 <= sd.length && sd.readUInt16LE(pos) === 0x003C) {
+                const cLen = sd.readUInt16LE(pos + 2);
+                sstRecs.push(sd.slice(pos + 4, pos + 4 + cLen));
+                pos += 4 + cLen;
             }
+            sst = parseSST(sstRecs);
         }
 
         // ── LABELSST ─────────────────────────────────────────────────────────
