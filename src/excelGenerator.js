@@ -98,7 +98,7 @@ function isoToDate(isoStr) {
  * @returns {Promise<Buffer>}
  */
 async function generateExcel(plate, carModel, dateFrom, dateTo,
-                              driver, odometer, refuelSet, agg,
+                              driver, dysponentName, odometer, refuelSet, agg,
                               tripPurpose = 'dowóz/odbiór pracowników') {
     const wb = new ExcelJS.Workbook();
 
@@ -300,7 +300,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     // Signature
     ws.mergeCells('C24:D24');
     const c24 = ws.getCell('C24');
-    c24.value     = (driver || '').trim();
+    c24.value     = (dysponentName || '').trim();
     c24.font      = font('Arial', 11, { color: '000000' });
     c24.alignment = align('center', 'bottom');
     c24.border    = dottedBdr();
@@ -520,7 +520,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     const sig = sr + 2;
     ws2.mergeCells(`G${sig}:H${sig}`);
     const gSig = ws2.getCell(`G${sig}`);
-    gSig.value     = (driver || '').trim();
+    gSig.value     = (dysponentName || '').trim();
     gSig.font      = font('Arial', 11, { color: '000000' });
     gSig.alignment = align('center', 'bottom');
     ws2.getCell(`H${sig}`).font = font('Arial', 11, { color: '000000' });

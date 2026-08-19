@@ -324,8 +324,12 @@ h1{font-size:31px}
               </select>
             </div>
             <div class="field">
-              <label>NAZWISKO I IMI&#x118;</label>
+              <label>NAZWISKO I IMI&#x118; (KIEROWCA)</label>
               <input type="text" id="driver_name" placeholder="np. Kowalski Jan" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>DYSPONENT (OS. WYPE&#x141;NIAJ&#x104;CA)</label>
+              <input type="text" id="dysponent_name" placeholder="np. Nowak Anna" autocomplete="off">
             </div>
           </div>
           <div class="field" style="margin-top:14px">
@@ -738,6 +742,7 @@ async function generate(){
     const form=new FormData();
     form.append('gps_file',file);
     form.append('driver_name',document.getElementById('driver_name').value);
+    form.append('dysponent_name',document.getElementById('dysponent_name').value.trim());
     form.append('odometer_start',document.getElementById('odometer_start').value||'0');
     form.append('refuel_dates',refuelDates.join(','));
     form.append('target_odometer',document.getElementById('target_odometer').value||'0');

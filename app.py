@@ -748,7 +748,7 @@ def bdr(top='thin', right='thin', bottom='thin', left='thin'):
 
 
 def generate_excel(plate, car_model, date_from, date_to,
-                   driver, odometer, refuel_set, agg, trip_purpose='dowóz/odbiór pracowników'):
+                   driver, dysponent, odometer, refuel_set, agg, trip_purpose='dowóz/odbiór pracowników'):
     wb = Workbook()
 
     # ── Tytułowa ─────────────────────────────────────────────────────────────
@@ -903,7 +903,7 @@ def generate_excel(plate, car_model, date_from, date_to,
     
     ws.merge_cells('C24:D24')
     cv = ws['C24']
-    cv.value = (driver or '').strip()
+    cv.value = (dysponent or '').strip()
     cv.font = Font(name='Arial', size=11, color='000000')
     cv.alignment = Alignment(horizontal='center', vertical='bottom')
     cv.border = dotted_bdr()
@@ -1083,7 +1083,7 @@ def generate_excel(plate, car_model, date_from, date_to,
     sig = sr + 2
     ws2.merge_cells(f'G{sig}:H{sig}')
     cv = ws2[f'G{sig}']
-    cv.value = (driver or '').strip()
+    cv.value = (dysponent or '').strip()
     cv.font  = Font(name='Arial', size=11, color='000000')
     cv.alignment = Alignment(horizontal='center', vertical='bottom')
     ws2[f'H{sig}'].font = Font(name='Arial', size=11, color='000000')
@@ -1405,6 +1405,7 @@ def generate():
 
         gps_file     = request.files['gps_file']
         driver       = request.form.get('driver_name', '').strip()
+        dysponent    = request.form.get('dysponent_name', '').strip()
         odo_raw      = request.form.get('odometer_start', '0').strip()
         refuel_raw   = request.form.get('refuel_dates', '').strip()
         target_odo_raw = request.form.get('target_odometer', '').strip()
@@ -1469,7 +1470,7 @@ def generate():
                     pass
 
         buf = generate_excel(plate, car_model, date_from, date_to,
-                             driver, odometer, refuel_set, agg,
+                             driver, dysponent, odometer, refuel_set, agg,
                              trip_purpose=trip_purpose)
 
         # Odtworzenie nazwy z przesłanego pliku i wymuszenie .xlsx

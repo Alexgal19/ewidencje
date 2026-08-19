@@ -41,6 +41,7 @@ app.post('/generate',
             const filename = req.file.originalname || 'upload.xls';
 
             const driver       = (req.body.driver_name      || '').trim();
+            const dysponent    = (req.body.dysponent_name   || '').trim();
             const odoRaw       = (req.body.odometer_start   || '0').trim();
             const refuelRaw    = (req.body.refuel_dates      || '').trim();
             const targetOdoRaw = (req.body.target_odometer  || '0').trim();
@@ -125,7 +126,7 @@ app.post('/generate',
 
             const xlsBuf = await generateExcel(
                 plate, carModel, dateFrom, dateTo,
-                driver, odometer, refuelSet, agg,
+                driver, dysponent, odometer, refuelSet, agg,
                 tripPurpose
             );
 
