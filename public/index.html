@@ -201,6 +201,8 @@ h1{font-size:31px}
 .check-line input{width:20px;height:20px}
 .muted-note{font-size:12.5px}
 .form-row{font-size:14.5px}
+.history-group-header{font-weight:600;font-size:16px;color:#333;margin-top:20px;margin-bottom:10px;border-bottom:1px solid #eee;padding-bottom:5px}
+.history-group-header:first-child{margin-top:0}
 [hidden]{display:none !important}
 </style>
 </head>
@@ -693,19 +695,41 @@ async function loadHistory(){
     const items=await api('/api/ewidencje').then(r=>r.json());
     if(!items.length){el.innerHTML='<div class="empty">Brak wygenerowanych ewidencji.</div>';return}
     el.innerHTML='';
+    const groups={};
     for(const it of items){
-      const row=document.createElement('div');row.className='list-item';
-      const period=(it.period_start||'?')+' \u2192 '+(it.period_end||'?');
-      const sub=[it.plate,it.car_model,it.driver_name].filter(Boolean).join(' \u00B7 ')||period;
-      const km=it.total_km!=null?Number(it.total_km).toLocaleString('pl-PL')+' km':'';
-      const created=it.created_at?new Date(it.created_at).toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'}):'';
-      row.innerHTML=
-        '<div class="li-info"><div class="li-title">'+escapeHtml(sub)+'</div>'+
-        '<div class="li-sub">'+escapeHtml(period)+(km?' &middot; '+escapeHtml(km):'')+(created?' &middot; '+escapeHtml(created):'')+'</div></div>'+
-        (it.download_url?'<button class="pv-btn" onclick="openPreview(\''+it.download_url+'\',\''+escapeHtml(it.file_name||'ewidencja.xlsx')+'\')">&#x1F4CA; Podgl\u0105d</button>':'')+
-        (it.download_url?'<a class="dl-btn" href="'+it.download_url+'" target="_blank" rel="noopener">&#x2B07; Pobierz</a>':'')+
-        '<button class="del-btn" onclick="delEwidencja(\''+it.id+'\')">Usu\u0144</button>';
-      el.appendChild(row);
+      let groupKey='0000-00',groupName='Nieznany okres';
+      if(it.period_start){
+        const d=new Date(it.period_start);
+        if(!isNaN(d)){
+          groupKey=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+          const m=d.toLocaleString('pl-PL',{month:'long',year:'numeric'});
+          groupName=m.charAt(0).toUpperCase()+m.slice(1);
+        }
+      }
+      if(!groups[groupKey])groups[groupKey]={name:groupName,items:[]};
+      groups[groupKey].items.push(it);
+    }
+    const sortedKeys=Object.keys(groups).sort().reverse();
+    for(const key of sortedKeys){
+      const g=groups[key];
+      const header=document.createElement('div');
+      header.className='history-group-header';
+      header.textContent=g.name;
+      el.appendChild(header);
+      for(const it of g.items){
+        const row=document.createElement('div');row.className='list-item';
+        const period=(it.period_start||'?')+' \u2192 '+(it.period_end||'?');
+        const sub=[it.plate,it.car_model,it.driver_name].filter(Boolean).join(' \u00B7 ')||period;
+        const km=it.total_km!=null?Number(it.total_km).toLocaleString('pl-PL')+' km':'';
+        const created=it.created_at?new Date(it.created_at).toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'}):'';
+        row.innerHTML=
+          '<div class="li-info"><div class="li-title">'+escapeHtml(sub)+'</div>'+
+          '<div class="li-sub">'+escapeHtml(period)+(km?' &middot; '+escapeHtml(km):'')+(created?' &middot; '+escapeHtml(created):'')+'</div></div>'+
+          (it.download_url?'<button class="pv-btn" onclick="openPreview(\''+it.download_url+'\',\''+escapeHtml(it.file_name||'ewidencja.xlsx')+'\')">&#x1F4CA; Podgl\u0105d</button>':'')+
+          (it.download_url?'<a class="dl-btn" href="'+it.download_url+'" target="_blank" rel="noopener">&#x2B07; Pobierz</a>':'')+
+          '<button class="del-btn" onclick="delEwidencja(\''+it.id+'\')">Usu\u0144</button>';
+        el.appendChild(row);
+      }
     }
   }catch(err){
     el.innerHTML='<div class="empty">B\u0142\u0105d \u0142adowania historii: '+escapeHtml(err.message)+'</div>';
