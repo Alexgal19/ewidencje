@@ -25,10 +25,46 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 def _xls_read_rows(xls_bytes, date_cols=(8, 11)):
     """
-    Czyta plik .xls (BIFF8/OLE) z czystego Pythona.
-    Zwraca listę wierszy (list of lists).
+    Czyta plik .xls (BIFF8/OLE).
+    Preferuje xlrd (dokładniejszy parser SST/CONTINUE),
+    z fallbackem na wbudowany parser BIFF8.
     date_cols – numery kolumn traktowane jako daty/godziny.
     """
+    # ── Try xlrd first (handles CONTINUE records & large SST correctly) ───
+    try:
+        import xlrd
+        wb = xlrd.open_workbook(file_contents=xls_bytes)
+        sh = wb.sheet_by_index(0)
+        rows = []
+        for i in range(sh.nrows):
+            row = []
+            for j in range(sh.ncols):
+                cell = sh.cell(i, j)
+                if cell.ctype == xlrd.XL_CELL_DATE:
+                    try:
+                        dt = xlrd.xldate_as_datetime(cell.value, wb.datemode)
+                        row.append(dt)
+                    except Exception:
+                        row.append(cell.value)
+                elif (cell.ctype == xlrd.XL_CELL_NUMBER
+                      and j in date_cols and 1 < cell.value < 3e5):
+                    try:
+                        dt = xlrd.xldate_as_datetime(cell.value, wb.datemode)
+                        row.append(dt)
+                    except Exception:
+                        row.append(cell.value)
+                elif cell.ctype == xlrd.XL_CELL_EMPTY:
+                    row.append(None)
+                else:
+                    row.append(cell.value)
+            rows.append(row)
+        return rows
+    except ImportError:
+        pass   # xlrd not installed → use built-in parser below
+    except Exception:
+        pass   # xlrd failed → use built-in parser below
+
+    # ── Fallback: built-in BIFF8/OLE parser ──────────────────────────────
     MAGIC       = b'\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1'
     ENDOFCHAIN  = 0xFFFFFFFE
     FREESECT    = 0xFFFFFFFF
@@ -354,13 +390,24 @@ def _parse_gps_addr(addr):
     if not parts:
         return '', '', ''
 
+    # ── House-number-first detection ───────────────────────────────────────
+    # GPS sometimes puts house number before the street name:
+    # Example: "60, ulica Henryka Jordana, Studzionka, Pszczyna, 43-245, ..."
+    #           ↑ house no.  ↑ street name       ↑ real city
+    # Without this fix, "ulica Henryka Jordana" becomes city_name (BUG).
+    if (len(parts) >= 3
+            and re.match(r'^\d+[a-zA-Z]?$', parts[0].strip())
+            and _looks_like_street(parts[1])):
+        # Merge house number into street: "ulica Henryka Jordana 60"
+        parts = [parts[1] + ' ' + parts[0].strip()] + parts[2:]
+
     # ── POI detection ────────────────────────────────────────────────────────
     # If the first segment does NOT look like a street (no digits, no "ul." etc.)
     # but the second segment DOES look like a street → first segment is a POI name;
     # skip it and use the rest as-is.
     # Example: "stop cafe, ulica Opolska 31, 55-200 Oława"
     #           ↑ POI name     ↑ real street
-    if (len(parts) >= 2
+    elif (len(parts) >= 2
             and not _looks_like_street(parts[0])
             and _looks_like_street(parts[1])):
         parts = parts[1:]   # drop POI segment
