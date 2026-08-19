@@ -1493,6 +1493,40 @@ def generate():
         tb = traceback.format_exc()
         return jsonify({'error': str(e), 'detail': tb}), 500
 
+@app.route('/api/edit-excel', methods=['POST'])
+def edit_excel():
+    try:
+        file = request.files.get('file')
+        if not file:
+            return jsonify({'error': 'Brak pliku'}), 400
+        
+        edits_json = request.form.get('edits', '[]')
+        import json
+        edits = json.loads(edits_json)
+        
+        wb = load_workbook(io.BytesIO(file.read()))
+        for edit in edits:
+            sheet_name = edit.get('sheet')
+            if sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                r = edit.get('r') + 1
+                c = edit.get('c') + 1
+                val = edit.get('val')
+                ws.cell(row=r, column=c, value=val)
+        
+        out = io.BytesIO()
+        wb.save(out)
+        out.seek(0)
+        
+        resp = send_file(out, as_attachment=True,
+                         download_name="edited.xlsx",
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        resp.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
+        return resp
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return jsonify({'error': str(e), 'detail': tb}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

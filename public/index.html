@@ -766,8 +766,10 @@ async function generate(){
 }
 
 // ── Podgląd Excel ─────────────────────────────────────────────────────────
-let _xlSheets=[],_xlCurrent=0,_xlWorkbook=null;
+let _xlSheets=[],_xlCurrent=0,_xlWorkbook=null,_xlOriginalUrl='',_xlEdits=[];
 function openPreview(url,name){
+  _xlOriginalUrl=url;
+  _xlEdits=[];
   const modal=document.getElementById('xl-modal');
   const body=document.getElementById('xl-body');
   document.getElementById('xl-title').textContent=name||'Podgląd';
@@ -801,7 +803,7 @@ function renderSheet(idx){
   let html='<table class="xl-table">';
   data.forEach((row,ri)=>{
     html+=ri===0?'<thead><tr>':'<tr>';
-    row.forEach(cell=>{
+    row.forEach((cell,ci)=>{
       const tag=ri===0?'th':'td';
       let v=cell;
       if(v instanceof Date){
@@ -810,7 +812,8 @@ function renderSheet(idx){
         const yy=v.getUTCFullYear();
         v=dd+'.'+mm+'.'+yy;
       }
-      html+='<'+tag+'>'+(v||'')+'</'+tag+'>';
+      const editable=tag==='td'?' contenteditable="true" onblur="updateCell(this,'+ri+','+ci+')"':'';
+      html+='<'+tag+editable+'>'+(v||'')+'</'+tag+'>';
     });
     html+=ri===0?'</tr></thead>':'</tr>';
   });
@@ -819,6 +822,44 @@ function renderSheet(idx){
 }
 function closePreview(){
   document.getElementById('xl-modal').classList.remove('open');
+}
+function updateCell(td, ri, ci){
+  const sheet=_xlSheets[_xlCurrent];
+  _xlEdits.push({sheet:sheet, r:ri, c:ci, val:td.innerText.trim()});
+}
+async function downloadEdited(){
+  if(document.activeElement && document.activeElement.tagName==='TD') document.activeElement.blur();
+  if(!_xlEdits.length) return alert('Brak zmian do zapisania.');
+  const btn=document.getElementById('xl-save-btn');
+  const origTxt=btn.textContent;
+  btn.textContent='Zapisywanie...';
+  btn.disabled=true;
+  try{
+    const origBlob=await fetch(_xlOriginalUrl).then(r=>r.blob());
+    const formData=new FormData();
+    formData.append('file',origBlob,'original.xlsx');
+    formData.append('edits',JSON.stringify(_xlEdits));
+    const {data:{session}}=await supabaseClient.auth.getSession();
+    const token=session?session.access_token:'';
+    const resp=await fetch('/api/edit-excel',{
+      method:'POST',
+      headers:token?{'Authorization':'Bearer '+token}:{},
+      body:formData
+    });
+    if(!resp.ok) throw new Error('B\u0142\u0105d podczas zapisywania');
+    const blob=await resp.blob();
+    const name=document.getElementById('xl-title').textContent;
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=name;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    closePreview();
+  }catch(err){
+    alert('B\u0142\u0105d: '+err.message);
+  }finally{
+    btn.textContent=origTxt;
+    btn.disabled=false;
+  }
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePreview()});
 
@@ -837,7 +878,10 @@ initSupabase().catch(err=>{
   <div class="modal-box">
     <div class="modal-head">
       <h3 id="xl-title">Podgl&#x105;d</h3>
-      <button class="modal-close" onclick="closePreview()" aria-label="Zamknij">&#x2715;</button>
+      <div>
+        <button id="xl-save-btn" class="dl-btn" style="margin-right:10px" onclick="downloadEdited()">&#x2B07; Zapisz i Pobierz</button>
+        <button class="modal-close" onclick="closePreview()" aria-label="Zamknij">&#x2715;</button>
+      </div>
     </div>
     <div class="modal-sheets" id="xl-sheets"></div>
     <div class="modal-body" id="xl-body"></div>

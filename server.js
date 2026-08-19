@@ -162,6 +162,37 @@ app.post('/generate',
             res.status(500).json({ error: String(err.message || err), detail: err.stack || '' });
         }
     });
+    app.post('/api/edit-excel', upload.single('file'), async (req, res) => {
+        try {
+            if (!req.file || !req.file.buffer) {
+                return res.status(400).json({ error: 'Brak pliku' });
+            }
+            let edits = [];
+            if (req.body.edits) {
+                try { edits = JSON.parse(req.body.edits); } catch(e) {}
+            }
+            const ExcelJS = require('exceljs');
+            const wb = new ExcelJS.Workbook();
+            await wb.xlsx.load(req.file.buffer);
+
+            for (const edit of edits) {
+                const ws = wb.getWorksheet(edit.sheet);
+                if (ws) {
+                    // ExcelJS uses 1-based indexing
+                    const cell = ws.getCell(edit.r + 1, edit.c + 1);
+                    cell.value = edit.val;
+                }
+            }
+
+            const outBuf = await wb.xlsx.writeBuffer();
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename="edited.xlsx"`);
+            res.send(outBuf);
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: String(err.message || err) });
+        }
+    });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
