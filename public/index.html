@@ -321,12 +321,14 @@ h1{font-size:31px}
           <div class="grid2">
             <div class="field">
               <label>POJAZD (OPCJONALNIE)</label>
+              <input type="text" id="vehicle_search" placeholder="Szukaj pojazdu..." oninput="renderVehicleSelect(this.value)" autocomplete="off" style="margin-bottom:6px">
               <select id="vehicle_select" onchange="onVehicleChange()">
                 <option value="">&#x2014; wybierz z bazy &#x2014;</option>
               </select>
             </div>
             <div class="field">
               <label>KIEROWCA Z BAZY (OPCJONALNIE)</label>
+              <input type="text" id="driver_search" placeholder="Szukaj kierowcy..." oninput="renderDriverSelect(this.value)" autocomplete="off" style="margin-bottom:6px">
               <select id="driver_select" onchange="onDriverChange()">
                 <option value="">&#x2014; wybierz z bazy &#x2014;</option>
               </select>
@@ -442,6 +444,9 @@ h1{font-size:31px}
           </div>
         </div>
         <div class="card-body" style="padding:0">
+          <div style="padding:16px; border-bottom:1px solid #333;">
+            <input type="text" id="history_search" placeholder="Szukaj w historii (kierowca, auto, data)..." oninput="filterHistory()" autocomplete="off">
+          </div>
           <div id="history-list"><div class="empty">&#x23F3; &#x141;adowanie...</div></div>
         </div>
       </div>
@@ -453,8 +458,8 @@ h1{font-size:31px}
         <div class="card-head">
           <div class="icon">&#x1F4E6;</div>
           <div class="card-head-text">
-            <h3>Dodaj pojazd</h3>
-            <p>Pojawi si&#x119; w li&#x15B;cie wyboru w formularzu generowania</p>
+            <h3>Baza pojazd&#xF3;w</h3>
+            <p>Zapisane pojazdy dla szybkiego wyboru</p>
           </div>
         </div>
         <div class="card-body">
@@ -632,9 +637,20 @@ async function loadVehicles(){
   vehicles=await api('/api/vehicles').then(r=>r.json());
   const sel=document.getElementById('vehicle_select');
   const prev=sel.value;
-  sel.innerHTML='<option value="">\u2014 wybierz z bazy \u2014</option>'+vehicles.map(v=>'<option value="'+v.id+'">'+escapeHtml(v.plate)+(v.make||v.model?' \u00B7 '+[v.make,v.model].filter(Boolean).join(' '):'')+'</option>').join('');
+  renderVehicleSelect(document.getElementById('vehicle_search').value);
   if(prev)sel.value=prev;
   renderVehicleList();
+}
+function renderVehicleSelect(query='') {
+  const sel = document.getElementById('vehicle_select');
+  const prev = sel.value;
+  const q = query.toLowerCase();
+  const filtered = vehicles.filter(v => 
+    !q || v.plate.toLowerCase().includes(q) || (v.make && v.make.toLowerCase().includes(q)) || (v.model && v.model.toLowerCase().includes(q))
+  );
+  sel.innerHTML = '<option value="">\u2014 wybierz z bazy \u2014</option>' + 
+    filtered.map(v => '<option value="'+v.id+'">'+escapeHtml(v.plate)+(v.make||v.model?' \u00B7 '+[v.make,v.model].filter(Boolean).join(' '):'')+'</option>').join('');
+  if (prev && filtered.find(v => v.id === prev)) sel.value = prev;
 }
 async function addVehicle(){
   const plate=document.getElementById('new_plate').value.trim();
@@ -653,9 +669,13 @@ async function delVehicle(id){
   catch(err){showStatus('err','\u2717',err.message)}
 }
 function renderVehicleList(){
+  const q = (document.getElementById('vehicle_db_search')?.value || '').toLowerCase();
   const el=document.getElementById('vehicle-list');
-  el.innerHTML=vehicles.length?'':'<div class="empty">Brak pojazd\u00F3w w bazie \u2013 dodaj pierwszy powy\u017Cej.</div>';
-  for(const v of vehicles){
+  const filtered = vehicles.filter(v => 
+    !q || v.plate.toLowerCase().includes(q) || (v.make && v.make.toLowerCase().includes(q)) || (v.model && v.model.toLowerCase().includes(q))
+  );
+  el.innerHTML=filtered.length?'':'<div class="empty">Brak pojazd\u00F3w spe\u0142niaj\u0105cych kryteria.</div>';
+  for(const v of filtered){
     const row=document.createElement('div');row.className='list-item';
     row.innerHTML='<div class="li-info"><div class="li-title">'+escapeHtml(v.plate)+'</div><div class="li-sub">'+escapeHtml([v.make,v.model].filter(Boolean).join(' ')||'\u2013')+'</div></div><button class="del-btn" onclick="delVehicle(\''+v.id+'\')">Usu\u0144</button>';
     el.appendChild(row);
@@ -675,9 +695,17 @@ async function loadDrivers(){
   drivers=await api('/api/drivers').then(r=>r.json());
   const sel=document.getElementById('driver_select');
   const prev=sel.value;
-  sel.innerHTML='<option value="">\u2014 wybierz z bazy \u2014</option>'+drivers.map(d=>'<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>').join('');
+  renderDriverSelect(document.getElementById('driver_search').value);
   if(prev)sel.value=prev;
   renderDriverList();
+}
+function renderDriverSelect(query='') {
+  const sel = document.getElementById('driver_select');
+  const prev = sel.value;
+  const q = query.toLowerCase();
+  const filtered = drivers.filter(d => !q || d.name.toLowerCase().includes(q));
+  sel.innerHTML = '<option value="">\u2014 wybierz z bazy \u2014</option>' + filtered.map(d => '<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>').join('');
+  if (prev && filtered.find(d => d.id === prev)) sel.value = prev;
 }
 async function addDriver(){
   const name=document.getElementById('new_driver').value.trim();
@@ -694,9 +722,11 @@ async function delDriver(id){
   catch(err){showStatus('err','\u2717',err.message)}
 }
 function renderDriverList(){
+  const q = (document.getElementById('driver_db_search')?.value || '').toLowerCase();
   const el=document.getElementById('driver-list');
-  el.innerHTML=drivers.length?'':'<div class="empty">Brak kierowc\u00F3w w bazie \u2013 dodaj pierwszego powy\u017Cej.</div>';
-  for(const d of drivers){
+  const filtered = drivers.filter(d => !q || d.name.toLowerCase().includes(q));
+  el.innerHTML=filtered.length?'':'<div class="empty">Brak kierowc\u00F3w spe\u0142niaj\u0105cych kryteria.</div>';
+  for(const d of filtered){
     const row=document.createElement('div');row.className='list-item';
     row.innerHTML='<div class="li-info"><div class="li-title">'+escapeHtml(d.name)+'</div></div><button class="del-btn" onclick="delDriver(\''+d.id+'\')">Usu\u0144</button>';
     el.appendChild(row);
@@ -773,6 +803,40 @@ async function loadHistory(){
   }catch(err){
     el.innerHTML='<div class="empty">B\u0142\u0105d \u0142adowania historii: '+escapeHtml(err.message)+'</div>';
   }
+}
+function filterHistory() {
+  const q = document.getElementById('history_search').value.toLowerCase();
+  const list = document.getElementById('history-list');
+  const years = list.querySelectorAll('.folder-year');
+  
+  years.forEach(year => {
+    let yearHasVisible = false;
+    const months = year.querySelectorAll('.folder-month');
+    
+    months.forEach(month => {
+      let monthHasVisible = false;
+      const items = month.querySelectorAll('.list-item');
+      
+      items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(q)) {
+          item.style.display = '';
+          monthHasVisible = true;
+          yearHasVisible = true;
+        } else {
+          item.style.display = 'none';
+        }
+      });
+      
+      month.style.display = monthHasVisible ? '' : 'none';
+      if (q && monthHasVisible) month.classList.add('open');
+      if (!q) month.classList.remove('open');
+    });
+    
+    year.style.display = yearHasVisible ? '' : 'none';
+    if (q && yearHasVisible) year.classList.add('open');
+    if (!q) year.classList.remove('open');
+  });
 }
 function delEwidencja(id){
   if(!confirm('Usun\u0105\u0107 t\u0119 ewidencj\u0119 z historii?'))return;
