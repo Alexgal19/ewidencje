@@ -758,6 +758,7 @@ async function loadHistory(){
             '<div class="li-info"><div class="li-title">'+escapeHtml(sub)+'</div>'+
             '<div class="li-sub">'+escapeHtml(period)+(km?' &middot; '+escapeHtml(km):'')+(created?' &middot; '+escapeHtml(created):'')+'</div></div>'+
             photosBtn+
+            '<button class="pv-btn" onclick="addPhotoToEwidencja(\''+it.id+'\')">&#x2795; Dodaj zdj\u0119cie</button>'+
             (it.download_url?'<button class="pv-btn" onclick="openPreview(\''+it.download_url+'\',\''+escapeHtml(it.file_name||'ewidencja.xlsx')+'\')">&#x1F4CA; Podgl\u0105d</button>':'')+
             (it.download_url?'<a class="dl-btn" href="'+it.download_url+'" target="_blank" rel="noopener">&#x2B07; Pobierz</a>':'')+
             '<button class="del-btn" onclick="delEwidencja(\''+it.id+'\')">Usu\u0144</button>';
@@ -777,6 +778,31 @@ function delEwidencja(id){
   if(!confirm('Usun\u0105\u0107 t\u0119 ewidencj\u0119 z historii?'))return;
   try{api('/api/ewidencje/'+id,{method:'DELETE'}).then(()=>loadHistory())}
   catch(err){showStatus('err','\u2717',err.message)}
+}
+function addPhotoToEwidencja(id){
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+        if(!e.target.files.length) return;
+        try {
+            const form = new FormData();
+            for(let i=0; i<e.target.files.length; i++) form.append('photos', e.target.files[i]);
+            const {data:{session}} = await supabaseClient.auth.getSession();
+            const resp = await fetch('/api/ewidencje/'+id+'/photos', {
+                method:'POST',
+                headers:{'Authorization':'Bearer '+session.access_token},
+                body: form
+            });
+            if(!resp.ok) throw new Error('B\u0142\u0105d podczas wgrywania zdj\u0119\u0107');
+            showStatus('ok','\u2713','Zdj\u0119cia zosta\u0142y dodane!');
+            loadHistory();
+        } catch(err) {
+            showStatus('err','\u2717',err.message);
+        }
+    };
+    input.click();
 }
 function openPhotos(b64){
   try{

@@ -9,7 +9,7 @@ const path    = require('path');
 const { parseGps, aggregate, aggregateActual } = require('./src/gpsParser');
 const { generateExcel } = require('./src/excelGenerator');
 const apiRoutes = require('./src/apiRoutes');
-const { requireAuth, isSupabaseConfigured, saveEwidencja, getVehicle } = require('./src/supabase');
+const { requireAuth, isSupabaseConfigured, saveEwidencja, getVehicle, addPhotosToHistoryEwidencja } = require('./src/supabase');
 
 const app    = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -19,6 +19,19 @@ app.use(express.json());
 
 // ── API (Supabase: auth, pojazdy, kierowcy, historia) ────────────────────────
 app.use('/api', apiRoutes);
+
+// Specjalny route do wgrywania zdjęć z historii (wymaga multer)
+app.post('/api/ewidencje/:id/photos', requireAuth, upload.array('photos', 20), async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ error: 'Brak zdjęć do wgrania' });
+        }
+        await addPhotosToHistoryEwidencja(req.user.id, req.params.id, req.files);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 

@@ -282,6 +282,51 @@ async function saveEwidencja({
     return data;
 }
 
+async function addPhotosToHistoryEwidencja(userId, id, photos) {
+    if (!isSupabaseConfigured() || !photos || !photos.length) return null;
+    
+    const sb = getSupabaseAdmin();
+    
+    // 1. Get current record
+    const { data: row, error: fetchErr } = await sb
+        .from('ewidencje')
+        .select('photo_paths')
+        .eq('id', id)
+        .eq('user_id', userId)
+        .single();
+        
+    if (fetchErr || !row) throw new Error('Nie znaleziono ewidencji');
+    
+    // 2. Upload new photos
+    const newPhotoPaths = [];
+    for (let i = 0; i < photos.length; i++) {
+        const p = photos[i];
+        const pName = p.originalname ? p.originalname.replace(/[^a-zA-Z0-9._-]/g, '_') : `photo_${i}.jpg`;
+        const pPath = `${userId}/photos/${Date.now()}_${i}_${pName}`;
+        const { error: pErr } = await sb.storage.from(BUCKET).upload(pPath, p.buffer, { contentType: p.mimetype || 'image/jpeg', upsert: true });
+        if (!pErr) {
+            newPhotoPaths.push(pPath);
+        }
+    }
+    
+    if (newPhotoPaths.length === 0) throw new Error('Nie udało się wgrać żadnego ze zdjęć');
+    
+    // 3. Update record
+    const updatedPaths = Array.isArray(row.photo_paths) ? [...row.photo_paths, ...newPhotoPaths] : [...newPhotoPaths];
+    const { error: updateErr } = await sb
+        .from('ewidencje')
+        .update({ photo_paths: updatedPaths })
+        .eq('id', id)
+        .eq('user_id', userId);
+        
+    if (updateErr) {
+        await sb.storage.from(BUCKET).remove(newPhotoPaths); // rollback
+        throw new Error('Błąd podczas aktualizacji rekordu w bazie: ' + updateErr.message);
+    }
+    
+    return true;
+}
+
 module.exports = {
     BUCKET,
     getSupabaseAdmin,
@@ -298,4 +343,5 @@ module.exports = {
     listEwidencje,
     deleteEwidencja,
     saveEwidencja,
+    addPhotosToHistoryEwidencja,
 };
