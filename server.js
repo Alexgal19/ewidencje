@@ -23,7 +23,10 @@ app.use('/api', apiRoutes);
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 app.post('/generate',
-    upload.single('gps_file'),
+    upload.fields([
+        { name: 'gps_file', maxCount: 1 },
+        { name: 'photos', maxCount: 10 }
+    ]),
     (req, res, next) => {
         if (!isSupabaseConfigured()) {
             return res.status(503).json({ error: 'Supabase nie jest skonfigurowany na serwerze (brak zmiennych środowiskowych).' });
@@ -33,12 +36,12 @@ app.post('/generate',
     requireAuth,
     async (req, res) => {
         try {
-            if (!req.file) {
+            if (!req.files || !req.files.gps_file || !req.files.gps_file[0]) {
                 return res.status(400).json({ error: 'Brak pliku GPS' });
             }
 
-            const buffer   = req.file.buffer;
-            const filename = req.file.originalname || 'upload.xls';
+            const buffer   = req.files.gps_file[0].buffer;
+            const filename = req.files.gps_file[0].originalname || 'upload.xls';
 
             const driver       = (req.body.driver_name      || '').trim();
             const dysponent    = (req.body.dysponent_name   || '').trim();
@@ -150,6 +153,7 @@ app.post('/generate',
                 totalKm,
                 fileName: outName,
                 buffer: xlsBuf,
+                photos: req.files.photos || []
             });
 
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

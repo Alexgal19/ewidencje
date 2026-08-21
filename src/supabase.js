@@ -159,7 +159,18 @@ async function listEwidencje(userId) {
                 .createSignedUrl(row.file_path, 3600);
             downloadUrl = signed ? signed.signedUrl : null;
         }
-        items.push({ ...row, download_url: downloadUrl });
+        
+        let photoUrls = [];
+        if (row.photo_paths && Array.isArray(row.photo_paths) && row.photo_paths.length > 0) {
+            const { data: signedPhotos } = await sb.storage
+                .from(BUCKET)
+                .createSignedUrls(row.photo_paths, 3600);
+            if (signedPhotos) {
+                photoUrls = signedPhotos.map(p => p.signedUrl).filter(Boolean);
+            }
+        }
+        
+        items.push({ ...row, download_url: downloadUrl, photo_urls: photoUrls });
     }
     return items;
 }
@@ -168,13 +179,20 @@ async function deleteEwidencja(userId, id) {
     const sb = getSupabaseAdmin();
     const { data: row } = await sb
         .from('ewidencje')
-        .select('file_path')
+        .select('file_path, photo_paths')
         .eq('id', id)
         .eq('user_id', userId)
         .maybeSingle();
 
-    if (row && row.file_path) {
-        await sb.storage.from(BUCKET).remove([row.file_path]);
+    if (row) {
+        const filesToRemove = [];
+        if (row.file_path) filesToRemove.push(row.file_path);
+        if (row.photo_paths && Array.isArray(row.photo_paths)) {
+            filesToRemove.push(...row.photo_paths);
+        }
+        if (filesToRemove.length > 0) {
+            await sb.storage.from(BUCKET).remove(filesToRemove);
+        }
     }
 
     const { error } = await sb
@@ -203,6 +221,7 @@ async function saveEwidencja({
     totalKm,
     fileName,
     buffer,
+    photos = []
 }) {
     if (!isSupabaseConfigured()) return null;
 
@@ -221,6 +240,19 @@ async function saveEwidencja({
         return null;
     }
 
+    const photoPaths = [];
+    if (photos && photos.length > 0) {
+        for (let i = 0; i < photos.length; i++) {
+            const p = photos[i];
+            const pName = p.originalname ? p.originalname.replace(/[^a-zA-Z0-9._-]/g, '_') : `photo_${i}.jpg`;
+            const pPath = `${userId}/photos/${Date.now()}_${i}_${pName}`;
+            const { error: pErr } = await sb.storage.from(BUCKET).upload(pPath, p.buffer, { contentType: p.mimetype || 'image/jpeg', upsert: true });
+            if (!pErr) {
+                photoPaths.push(pPath);
+            }
+        }
+    }
+
     const { data, error } = await sb
         .from('ewidencje')
         .insert({
@@ -237,13 +269,14 @@ async function saveEwidencja({
             total_km: totalKm,
             file_name: safeName,
             file_path: filePath,
+            photo_paths: photoPaths.length > 0 ? photoPaths : null
         })
         .select()
         .single();
 
     if (error) {
         console.error('[Supabase] History insert failed:', error.message);
-        await sb.storage.from(BUCKET).remove([filePath]);
+        await sb.storage.from(BUCKET).remove([filePath, ...photoPaths]);
         return null;
     }
     return data;

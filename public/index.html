@@ -381,6 +381,20 @@ h1{font-size:31px}
           </div>
         </div>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="icon">&#x1F4F7;</div>
+          <div class="card-head-text">
+            <h3>Zdj&#x119;cia przebiegu (Opcjonalnie)</h3>
+            <p>Za&#x142;&#x105;cz zdj&#x119;cia licznika, zostan&#x105; zapisane w historii</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <input type="file" id="photos_input" accept="image/*" multiple>
+          </div>
+        </div>
+      </div>
 
       <div class="card">
         <div class="card-head">
@@ -735,9 +749,15 @@ async function loadHistory(){
           const sub=[it.plate,it.car_model,it.driver_name].filter(Boolean).join(' \u00B7 ')||period;
           const km=it.total_km!=null?Number(it.total_km).toLocaleString('pl-PL')+' km':'';
           const created=it.created_at?new Date(it.created_at).toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'}):'';
+          let photosBtn='';
+          if(it.photo_urls && Array.isArray(it.photo_urls) && it.photo_urls.length>0){
+              const b64=btoa(JSON.stringify(it.photo_urls));
+              photosBtn='<button class="pv-btn" style="background:#4caf50;color:#fff;border:none;margin-right:6px" onclick="openPhotos(\''+b64+'\')">&#x1F4F8; Zdj\u0119cia ('+it.photo_urls.length+')</button>';
+          }
           row.innerHTML=
             '<div class="li-info"><div class="li-title">'+escapeHtml(sub)+'</div>'+
             '<div class="li-sub">'+escapeHtml(period)+(km?' &middot; '+escapeHtml(km):'')+(created?' &middot; '+escapeHtml(created):'')+'</div></div>'+
+            photosBtn+
             (it.download_url?'<button class="pv-btn" onclick="openPreview(\''+it.download_url+'\',\''+escapeHtml(it.file_name||'ewidencja.xlsx')+'\')">&#x1F4CA; Podgl\u0105d</button>':'')+
             (it.download_url?'<a class="dl-btn" href="'+it.download_url+'" target="_blank" rel="noopener">&#x2B07; Pobierz</a>':'')+
             '<button class="del-btn" onclick="delEwidencja(\''+it.id+'\')">Usu\u0144</button>';
@@ -753,10 +773,23 @@ async function loadHistory(){
     el.innerHTML='<div class="empty">B\u0142\u0105d \u0142adowania historii: '+escapeHtml(err.message)+'</div>';
   }
 }
-async function delEwidencja(id){
+function delEwidencja(id){
   if(!confirm('Usun\u0105\u0107 t\u0119 ewidencj\u0119 z historii?'))return;
-  try{await api('/api/ewidencje/'+id,{method:'DELETE'});await loadHistory();}
+  try{api('/api/ewidencje/'+id,{method:'DELETE'}).then(()=>loadHistory())}
   catch(err){showStatus('err','\u2717',err.message)}
+}
+function openPhotos(b64){
+  try{
+      const urls=JSON.parse(atob(b64));
+      if(!urls.length)return;
+      // Prosta galeria otwierana w nowym oknie
+      let html='<html><head><title>Zdj\u0119cia</title><style>body{font-family:sans-serif;background:#222;color:#fff;text-align:center;padding:20px} img{max-width:90%;max-height:80vh;margin-bottom:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.5)}</style></head><body><h2>Za\u0142\u0105czone Zdj\u0119cia</h2>';
+      for(const u of urls){ html+='<a href="'+u+'" target="_blank"><img src="'+u+'"></a><br>'; }
+      html+='</body></html>';
+      const w=window.open('','_blank');
+      w.document.write(html);
+      w.document.close();
+  }catch(e){alert('B\u0142\u0105d otwierania zdj\u0119\u0107')}
 }
 
 // ── App (generate) ───────────────────────────────────────────────────────────
@@ -792,6 +825,14 @@ async function generate(){
     form.append('trip_purpose',document.getElementById('trip_purpose').value.trim());
     form.append('vehicle_id',document.getElementById('vehicle_select').value);
     form.append('driver_id',document.getElementById('driver_select').value);
+    
+    const photosInput=document.getElementById('photos_input');
+    if(photosInput && photosInput.files.length){
+        for(let i=0;i<photosInput.files.length;i++){
+            form.append('photos', photosInput.files[i]);
+        }
+    }
+    
     const {data:{session}}=await supabaseClient.auth.getSession();
     const resp=await fetch('/generate',{method:'POST',headers:{'Authorization':'Bearer '+session.access_token},body:form});
     stopProgress();
