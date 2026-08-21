@@ -321,17 +321,13 @@ h1{font-size:31px}
           <div class="grid2">
             <div class="field">
               <label>POJAZD (OPCJONALNIE)</label>
-              <input type="text" id="vehicle_search" placeholder="Szukaj pojazdu..." oninput="renderVehicleSelect(this.value)" autocomplete="off" style="margin-bottom:6px">
-              <select id="vehicle_select" onchange="onVehicleChange()">
-                <option value="">&#x2014; wybierz z bazy &#x2014;</option>
-              </select>
+              <input type="text" id="vehicle_select" list="vehicle_list" placeholder="&#x2014; wybierz z bazy &#x2014;" onchange="onVehicleChange()" autocomplete="off">
+              <datalist id="vehicle_list"></datalist>
             </div>
             <div class="field">
               <label>KIEROWCA Z BAZY (OPCJONALNIE)</label>
-              <input type="text" id="driver_search" placeholder="Szukaj kierowcy..." oninput="renderDriverSelect(this.value)" autocomplete="off" style="margin-bottom:6px">
-              <select id="driver_select" onchange="onDriverChange()">
-                <option value="">&#x2014; wybierz z bazy &#x2014;</option>
-              </select>
+              <input type="text" id="driver_select" list="driver_list" placeholder="&#x2014; wybierz z bazy &#x2014;" onchange="onDriverChange()" autocomplete="off">
+              <datalist id="driver_list"></datalist>
             </div>
             <div class="field">
               <label>NAZWISKO I IMI&#x118; (KIEROWCA)</label>
@@ -635,22 +631,18 @@ function switchTab(name){
 let vehicles=[],drivers=[];
 async function loadVehicles(){
   vehicles=await api('/api/vehicles').then(r=>r.json());
-  const sel=document.getElementById('vehicle_select');
-  const prev=sel.value;
-  renderVehicleSelect(document.getElementById('vehicle_search').value);
-  if(prev)sel.value=prev;
+  renderVehicleSelect();
   renderVehicleList();
 }
-function renderVehicleSelect(query='') {
-  const sel = document.getElementById('vehicle_select');
-  const prev = sel.value;
-  const q = query.toLowerCase();
-  const filtered = vehicles.filter(v => 
-    !q || v.plate.toLowerCase().includes(q) || (v.make && v.make.toLowerCase().includes(q)) || (v.model && v.model.toLowerCase().includes(q))
-  );
-  sel.innerHTML = '<option value="">\u2014 wybierz z bazy \u2014</option>' + 
-    filtered.map(v => '<option value="'+v.id+'">'+escapeHtml(v.plate)+(v.make||v.model?' \u00B7 '+[v.make,v.model].filter(Boolean).join(' '):'')+'</option>').join('');
-  if (prev && filtered.find(v => v.id === prev)) sel.value = prev;
+function renderVehicleSelect() {
+  const dl = document.getElementById('vehicle_list');
+  dl.innerHTML = vehicles.map(v => '<option value="'+escapeHtml(v.plate+(v.make||v.model?' \u00B7 '+[v.make,v.model].filter(Boolean).join(' '):''))+'" data-id="'+v.id+'"></option>').join('');
+}
+function getSelectedVehicleId() {
+  const val = document.getElementById('vehicle_select').value;
+  if(!val) return '';
+  const opt = document.querySelector('#vehicle_list option[value="'+val.replace(/"/g, '\\"')+'"]');
+  return opt ? opt.dataset.id : '';
 }
 async function addVehicle(){
   const plate=document.getElementById('new_plate').value.trim();
@@ -682,7 +674,7 @@ function renderVehicleList(){
   }
 }
 async function onVehicleChange(){
-  const vid=document.getElementById('vehicle_select').value;
+  const vid=getSelectedVehicleId();
   if(!vid)return;
   try{
     const data=await api('/api/vehicles/'+encodeURIComponent(vid)+'/last').then(r=>r.json());
@@ -693,19 +685,18 @@ async function onVehicleChange(){
 
 async function loadDrivers(){
   drivers=await api('/api/drivers').then(r=>r.json());
-  const sel=document.getElementById('driver_select');
-  const prev=sel.value;
-  renderDriverSelect(document.getElementById('driver_search').value);
-  if(prev)sel.value=prev;
+  renderDriverSelect();
   renderDriverList();
 }
-function renderDriverSelect(query='') {
-  const sel = document.getElementById('driver_select');
-  const prev = sel.value;
-  const q = query.toLowerCase();
-  const filtered = drivers.filter(d => !q || d.name.toLowerCase().includes(q));
-  sel.innerHTML = '<option value="">\u2014 wybierz z bazy \u2014</option>' + filtered.map(d => '<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>').join('');
-  if (prev && filtered.find(d => d.id === prev)) sel.value = prev;
+function renderDriverSelect() {
+  const dl = document.getElementById('driver_list');
+  dl.innerHTML = drivers.map(d => '<option value="'+escapeHtml(d.name)+'" data-id="'+d.id+'"></option>').join('');
+}
+function getSelectedDriverId() {
+  const val = document.getElementById('driver_select').value;
+  if(!val) return '';
+  const opt = document.querySelector('#driver_list option[value="'+val.replace(/"/g, '\\"')+'"]');
+  return opt ? opt.dataset.id : '';
 }
 async function addDriver(){
   const name=document.getElementById('new_driver').value.trim();
@@ -733,8 +724,8 @@ function renderDriverList(){
   }
 }
 function onDriverChange(){
-  const sel=document.getElementById('driver_select');
-  const d=drivers.find(x=>x.id===sel.value);
+  const did=getSelectedDriverId();
+  const d=drivers.find(x=>x.id===did);
   if(d)document.getElementById('driver_name').value=d.name;
 }
 
@@ -913,8 +904,8 @@ async function generate(){
     form.append('target_odometer',document.getElementById('target_odometer').value||'0');
     form.append('adjust_mileage',document.getElementById('adjust_mileage').checked);
     form.append('trip_purpose',document.getElementById('trip_purpose').value.trim());
-    form.append('vehicle_id',document.getElementById('vehicle_select').value);
-    form.append('driver_id',document.getElementById('driver_select').value);
+    form.append('vehicle_id',getSelectedVehicleId());
+    form.append('driver_id',getSelectedDriverId());
     
     const photosInput=document.getElementById('photos_input');
     if(photosInput && photosInput.files.length){
