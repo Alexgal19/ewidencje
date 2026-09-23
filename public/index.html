@@ -267,7 +267,7 @@ h1{font-size:31px}
           Nie masz konta? <button onclick="toggleAuthMode()">Zarejestruj si&#x119;</button>
         </div>
         <div class="auth-toggle" id="auth_forgot">
-          Nie pami&#281;tasz has&#322;a? <button onclick="forgotPassword()">Zresetuj has&#322;o</button>
+          Nie pami&#281;tasz has&#322;a? Wpisz sw&#243;j e-mail powy&#380;ej i kliknij <button onclick="forgotPassword()">Zresetuj has&#322;o</button>
         </div>
       </div>
     </div>
@@ -628,7 +628,7 @@ async function forgotPassword(){
   const st=document.getElementById('auth_status');
   const show=(type,icon,msg)=>{st.className='status '+type;st.querySelector('.si').textContent=icon;st.querySelector('div:last-child').textContent=msg};
   const email=document.getElementById('auth_email').value.trim();
-  if(!email){show('err','\u26A0','Podaj e-mail, na kt\u00F3ry ma zosta\u0107 wys\u0142any link.');return}
+  if(!email){show('err','\u26A0','Podaj e-mail, na kt\u00F3ry ma zosta\u0107 wys\u0142any link.');document.getElementById('auth_email').focus();return}
   try{
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
     if(error)throw new Error(error.message);
