@@ -13,7 +13,7 @@
     "docker:up": "npm run docker:build && npm run docker:run",
     "build": "node gen-icons.js",
     "build:exe": "node gen-icons.js && .\\.venv\\Scripts\\pyinstaller.exe --noconfirm GeneratorEwidencji.spec",
-    "deploy": "gcloud run deploy ewidencja --source . --project=ewidecja --region=europe-central2 --platform=managed --allow-unauthenticated --port=8080 --memory=512Mi --timeout=60"
+    "deploy": "gcloud run deploy ewidencja --source . --project=ewidecja-491821 --region=europe-central2 --platform=managed --allow-unauthenticated --port=8080 --memory=512Mi --timeout=60"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
