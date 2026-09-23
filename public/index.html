@@ -229,28 +229,45 @@ h1{font-size:31px}
         </div>
         <div class="login-title">Ewidencja Przebiegu Pojazdu</div>
         <div class="login-sub">Smart Work Sp. z o.o. &middot; zaloguj si&#x119;, aby kontynuowa&#263;</div>
-        <div class="field" style="margin-bottom:14px">
-          <label>E-MAIL</label>
-          <input type="email" id="auth_email" placeholder="np. jan.kowalski@firma.pl" autocomplete="email">
+        <div id="login-panel">
+          <div class="field" style="margin-bottom:14px">
+            <label>E-MAIL</label>
+            <input type="email" id="auth_email" placeholder="np. jan.kowalski@firma.pl" autocomplete="email">
+          </div>
+          <div class="field" style="margin-bottom:20px">
+            <label>HAS&#x141;O</label>
+            <input type="password" id="auth_password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password">
+          </div>
+          <button class="btn" id="auth_btn" onclick="doAuth()"><span id="auth_btn_text">&#x1F512; Zaloguj si&#x119;</span></button>
+          <div class="auth-divider">lub</div>
+          <button class="btn-google" id="google_btn" onclick="googleLogin()">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-label="Google">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            Zaloguj przez Google
+          </button>
         </div>
-        <div class="field" style="margin-bottom:20px">
-          <label>HAS&#x141;O</label>
-          <input type="password" id="auth_password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password">
+        <div id="reset-panel" hidden>
+          <div class="login-sub" style="margin-bottom:16px">Ustaw nowe has&#322;o dla swojego konta.</div>
+          <div class="field" style="margin-bottom:14px">
+            <label>NOWE HAS&#x141;O</label>
+            <input type="password" id="reset_password" placeholder="min. 6 znak&#243;w" autocomplete="new-password">
+          </div>
+          <div class="field" style="margin-bottom:20px">
+            <label>POWT&Oacute;RZ NOWE HAS&#x141;O</label>
+            <input type="password" id="reset_password2" placeholder="powt&oacute;rz has&#322;o" autocomplete="new-password">
+          </div>
+          <button class="btn" id="reset_btn" onclick="doPasswordReset()"><span>&#x1F512; Ustaw nowe has&#x322;o</span></button>
         </div>
-        <button class="btn" id="auth_btn" onclick="doAuth()"><span id="auth_btn_text">&#x1F512; Zaloguj si&#x119;</span></button>
-        <div class="auth-divider">lub</div>
-        <button class="btn-google" id="google_btn" onclick="googleLogin()">
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-label="Google">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-          </svg>
-          Zaloguj przez Google
-        </button>
         <div class="status" id="auth_status"><div class="si"></div><div></div></div>
         <div class="auth-toggle" id="auth_toggle">
           Nie masz konta? <button onclick="toggleAuthMode()">Zarejestruj si&#x119;</button>
+        </div>
+        <div class="auth-toggle" id="auth_forgot">
+          Nie pami&#281;tasz has&#322;a? <button onclick="forgotPassword()">Zresetuj has&#322;o</button>
         </div>
       </div>
     </div>
@@ -538,8 +555,9 @@ async function initSupabase(){
     throw new Error(cfg.error||'Brak konfiguracji Supabase z serwera (/api/config)');
   }
   supabaseClient=supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
-  supabaseClient.auth.onAuthStateChange((_evt,session)=>{
+  supabaseClient.auth.onAuthStateChange((evt,session)=>{
     currentUser=session?session.user:null;
+    if(evt==='PASSWORD_RECOVERY'){showLogin();showResetPanel();return}
     if(currentUser){
       showApp();
     }else{
@@ -551,7 +569,19 @@ async function initSupabase(){
   if(currentUser){showApp();}else{showLogin();}
 }
 
-function showLogin(){document.getElementById('view-login').hidden=false;document.getElementById('view-app').hidden=true}
+function showLogin(){
+  document.getElementById('view-login').hidden=false;
+  document.getElementById('view-app').hidden=true;
+  showLoginPanel();
+}
+function showLoginPanel(){
+  document.getElementById('login-panel').hidden=false;
+  document.getElementById('reset-panel').hidden=true;
+}
+function showResetPanel(){
+  document.getElementById('login-panel').hidden=true;
+  document.getElementById('reset-panel').hidden=false;
+}
 function showApp(){
   document.getElementById('view-login').hidden=true;
   document.getElementById('view-app').hidden=false;
@@ -592,6 +622,38 @@ async function doAuth(){
 async function logout(){
   await supabaseClient.auth.signOut();
   showLogin();
+}
+
+async function forgotPassword(){
+  const st=document.getElementById('auth_status');
+  const show=(type,icon,msg)=>{st.className='status '+type;st.querySelector('.si').textContent=icon;st.querySelector('div:last-child').textContent=msg};
+  const email=document.getElementById('auth_email').value.trim();
+  if(!email){show('err','\u26A0','Podaj e-mail, na kt\u00F3ry ma zosta\u0107 wys\u0142any link.');return}
+  try{
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
+    if(error)throw new Error(error.message);
+    show('ok','\u2713','Link do zmiany has\u0142a zosta\u0142 wys\u0142any. Sprawd\u017A skrzynk\u0119 e-mail.');
+  }catch(err){show('err','\u2717','B\u0142\u0105d: '+err.message)}
+}
+
+async function doPasswordReset(){
+  const st=document.getElementById('auth_status');
+  const show=(type,icon,msg)=>{st.className='status '+type;st.querySelector('.si').textContent=icon;st.querySelector('div:last-child').textContent=msg};
+  const p1=document.getElementById('reset_password').value;
+  const p2=document.getElementById('reset_password2').value;
+  if(p1.length<6){show('err','\u26A0','Has\u0142o musi mie\u0107 co najmniej 6 znak\u00F3w.');return}
+  if(p1!==p2){show('err','\u26A0','Has\u0142a nie s\u0105 identyczne.');return}
+  const btn=document.getElementById('reset_btn');btn.disabled=true;
+  try{
+    const { error } = await supabaseClient.auth.updateUser({password:p1});
+    if(error)throw new Error(error.message);
+    document.getElementById('reset_password').value='';
+    document.getElementById('reset_password2').value='';
+    show('ok','\u2713','Has\u0142o zosta\u0142o zmienione.');
+    showLoginPanel();
+    showApp();
+  }catch(err){show('err','\u2717','B\u0142\u0105d: '+err.message)}
+  finally{btn.disabled=false}
 }
 
 async function googleLogin(){
