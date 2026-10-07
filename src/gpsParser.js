@@ -453,8 +453,10 @@ async function parseGps(buffer, filename) {
                     let km = 0;
                     for (const c of kmCols) {
                         const val = row[c];
-                        const num = typeof val === 'number' ? val : parseFloat(String(val ?? ''));
-                        if (!isNaN(num) && num > 0) { km = num; break; }
+                        // Strict numeric only: parseFloat('54:30:49') would read a stop-time cell as 54 km
+                        const num = typeof val === 'number' ? val
+                            : (/^\d+(\.\d+)?$/.test(String(val ?? '').trim()) ? parseFloat(val) : NaN);
+                        if (!isNaN(num)) { km = num; break; }
                     }
 
                     // Collect addresses from trip rows
