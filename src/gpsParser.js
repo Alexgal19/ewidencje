@@ -190,7 +190,7 @@ const onlineCitiesCache = loadKnownCities();
  */
 function httpsGet(url) {
     return new Promise((resolve) => {
-        http.get(url, {
+        const req = http.get(url, {
             headers: { 'User-Agent': 'GeneratorEwidencji/4.0 (contact@example.com)' },
             timeout: 5000,
         }, (res) => {
@@ -201,14 +201,20 @@ function httpsGet(url) {
                 catch (e) { resolve(null); }
             });
         }).on('error', () => resolve(null));
+        req.on('timeout', () => req.destroy());
     });
 }
+
+const GEOCODE_BUDGET_MS = 25000;
+let geocodeBudgetUntil = Infinity;
 
 /**
  * Query Nominatim for a city name from zip code + street.
  * Returns city name string or null.
  */
 async function geocodeCityNominatim(zipCode, streetRaw) {
+    // Stay well under the Cloud Run request timeout: stop geocoding once the per-file budget is spent
+    if (Date.now() > geocodeBudgetUntil) return null;
     const query = encodeURIComponent(`${zipCode} ${streetRaw}, Poland`);
     const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=jsonv2&addressdetails=1&limit=1`;
     // Respect 1 req/sec policy
@@ -348,6 +354,7 @@ async function extractCity(addr) {
  * dayGroups entries: { date: isoStr, km: number, addresses: string[], firstStart: string, lastEnd: string }
  */
 async function parseGps(buffer, filename) {
+    geocodeBudgetUntil = Date.now() + GEOCODE_BUDGET_MS;
     const ext = path.extname(filename).toLowerCase();
 
     let rows;
@@ -379,7 +386,7 @@ async function parseGps(buffer, filename) {
     let dateCol      = 8;
     let startAddrCol = 9;
     let endAddrCol   = 12;
-    let kmCols       = [16, 15, 17, 14, 18]; // columns to search for km in "Razem" row
+    let kmCols       = [16]; // column with km in "Razem" row (other nearby columns are times / speeds)
 
     const firstDateRow = rows.find(r => r && r[10] instanceof Date);
     if (firstDateRow) {
@@ -387,10 +394,16 @@ async function parseGps(buffer, filename) {
         dateCol      = 10;
         startAddrCol = 12;
         endAddrCol   = 17;
-        kmCols       = [23, 6, 7, 8]; // km in Razem row, col23 = total distance
+        kmCols       = [23]; // km in Razem row, col23 = total distance
         console.log('[Parser] Detected NEW XLSX format (date@col10, addr@col12/17, km@col23)');
     } else {
         console.log('[Parser] Detected OLD XLS format (date@col8, addr@col9/12, km@col16)');
+    }
+
+    // Prefer the real position of the "Dystans" header over the hard-coded layout guess
+    for (let i = 0; i < Math.min(rows.length, 30); i++) {
+        const idx = (rows[i] || []).findIndex(c => typeof c === 'string' && /^dystans$/i.test(c.trim()));
+        if (idx >= 0) { kmCols = [idx]; break; }
     }
 
     // ── Scan header rows for metadata ───────────────────────────────────────

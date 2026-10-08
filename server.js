@@ -187,10 +187,10 @@ app.post('/generate',
 
         } catch (err) {
             console.error(err);
-            res.status(500).json({ error: String(err.message || err), detail: err.stack || '' });
+            res.status(500).json({ error: String(err.message || err) });
         }
     });
-    app.post('/api/edit-excel', upload.single('file'), async (req, res) => {
+    app.post('/api/edit-excel', requireAuth, upload.single('file'), async (req, res) => {
         try {
             if (!req.file || !req.file.buffer) {
                 return res.status(400).json({ error: 'Brak pliku' });

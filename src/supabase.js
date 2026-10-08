@@ -156,7 +156,7 @@ async function listEwidencje(userId) {
         if (row.file_path) {
             const { data: signed } = await sb.storage
                 .from(BUCKET)
-                .createSignedUrl(row.file_path, 3600);
+                .createSignedUrl(row.file_path, 3600, { download: row.file_name || true });
             downloadUrl = signed ? signed.signedUrl : null;
         }
         
@@ -230,7 +230,8 @@ async function saveEwidencja({
         .replace(/[^a-zA-Z0-9._-]/g, '_')
         .replace(/_+/g, '_')
         .slice(0, 120);
-    const filePath = `${userId}/${safeName}`;
+    // Unique prefix: same plate+month generated twice must not share (and overwrite/delete) one file
+    const filePath = `${userId}/${Date.now()}_${safeName}`;
 
     const { error: upErr } = await sb.storage
         .from(BUCKET)
@@ -267,7 +268,7 @@ async function saveEwidencja({
             odometer_start: odometerStart,
             odometer_end: odometerEnd,
             total_km: totalKm,
-            file_name: safeName,
+            file_name: fileName,
             file_path: filePath,
             photo_paths: photoPaths.length > 0 ? photoPaths : null
         })

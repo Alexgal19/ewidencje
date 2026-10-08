@@ -559,8 +559,10 @@ async function initSupabase(){
     currentUser=session?session.user:null;
     if(evt==='PASSWORD_RECOVERY'){showLogin();showResetPanel();return}
     if(currentUser){
-      showApp();
+      // Supabase re-emits SIGNED_IN / TOKEN_REFRESHED on tab focus - don't rebuild the UI for the same user
+      if(appShownFor!==currentUser.id)showApp();
     }else{
+      appShownFor=null;
       showLogin();
     }
   });
@@ -582,7 +584,9 @@ function showResetPanel(){
   document.getElementById('login-panel').hidden=true;
   document.getElementById('reset-panel').hidden=false;
 }
+let appShownFor=null;
 function showApp(){
+  appShownFor=currentUser.id;
   document.getElementById('view-login').hidden=true;
   document.getElementById('view-app').hidden=false;
   document.getElementById('user-email').textContent=currentUser.email||'';
@@ -797,6 +801,7 @@ async function loadHistory(){
   try{
     const items=await api('/api/ewidencje').then(r=>r.json());
     if(!items.length){el.innerHTML='<div class="empty">Brak wygenerowanych ewidencji.</div>';return}
+    const openKeys=new Set([...el.querySelectorAll('.folder-year.open,.folder-month.open')].map(f=>f.dataset.key));
     el.innerHTML='';
     const groups={};
     for(const it of items){
@@ -815,14 +820,14 @@ async function loadHistory(){
     }
     const years=Object.keys(groups).sort().reverse();
     for(const y of years){
-      const fy=document.createElement('div');fy.className='folder-year';
+      const fy=document.createElement('div');fy.className='folder-year';fy.dataset.key=y;if(openKeys.has(y))fy.classList.add('open');
       fy.innerHTML='<div class="folder-title" onclick="this.parentElement.classList.toggle(\'open\')">'+escapeHtml(y)+'</div>';
       const c1=document.createElement('div');c1.className='folder-content';
       
       const months=Object.keys(groups[y]).sort().reverse();
       for(const m of months){
         const mName=m.split('|')[1];
-        const fm=document.createElement('div');fm.className='folder-month';
+        const fm=document.createElement('div');fm.className='folder-month';fm.dataset.key=y+'/'+m;if(openKeys.has(fm.dataset.key))fm.classList.add('open');
         fm.innerHTML='<div class="folder-title" onclick="this.parentElement.classList.toggle(\'open\')">'+escapeHtml(mName)+'</div>';
         const c2=document.createElement('div');c2.className='folder-content';
         
