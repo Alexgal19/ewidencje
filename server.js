@@ -16,12 +16,11 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 
 const MONTH_NAMES_PL = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'];
 
-/** "07. ewidencja lipiec 31.07.2026 DSW3318E.xlsx" */
+/** "07. ewidencja lipiec 2026 DSW3318E.xlsx" */
 function buildOutName(plate, year, month) {
     const mm = String(month).padStart(2, '0');
-    const lastDay = String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, '0');
     const plateClean = (plate || 'auto').replace(/[^a-zA-Z0-9]/g, '');
-    return `${mm}. ewidencja ${MONTH_NAMES_PL[month - 1]} ${lastDay}.${mm}.${year} ${plateClean}.xlsx`;
+    return `${mm}. ewidencja ${MONTH_NAMES_PL[month - 1]} ${year} ${plateClean}.xlsx`;
 }
 
 app.use(express.static(path.join(__dirname, 'public')));
