@@ -1,4 +1,4 @@
-const CACHE = 'ewidencja-v6';
+const CACHE = 'ewidencja-v7';
 const SHELL = ['/'];
 
 self.addEventListener('install', e => {
