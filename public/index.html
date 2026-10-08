@@ -336,14 +336,71 @@ body{padding:20px}
 .gen-grid .card-body{flex:1}
 .gen-actions{grid-column:1/-1;padding-bottom:8px}
 .gen-actions .install-btn{margin-bottom:12px}
-#refuel-card{grid-column:1/-1}
+/* ── Generuj: kompaktowy układ bez przewijania ───────────────────────── */
+.gen-grid{gap:16px;grid-template-areas:"gps photos" "driver korekta" "refuel refuel" "actions actions"}
+#gps-card{grid-area:gps}#photos-card{grid-area:photos}#driver-card{grid-area:driver}#target-korekta-card{grid-area:korekta}#refuel-card{grid-area:refuel}.gen-actions{grid-area:actions}
+@media(min-width:1200px){
+  .gen-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"gps driver korekta" "photos driver refuel" "actions actions actions"}
+}
+@media(max-width:880px){.gen-grid{grid-template-areas:none}#gps-card,#photos-card,#driver-card,#target-korekta-card,#refuel-card,.gen-actions{grid-area:auto}}
+.gen-grid .card-head{padding:14px 20px 12px}
+.gen-grid .card-head .icon{width:32px;height:32px}
+.gen-grid .card-head-text h3{font-size:15px}
+.gen-grid .card-head-text p{font-size:12px}
+.gen-grid .card-body{padding:18px 20px 20px}
+.gen-grid .grid2{gap:12px;align-items:end}
+.gen-grid .field{gap:5px}
+.gen-grid .field label{font-size:11.5px}
+.gen-grid .field input,.gen-grid .field select{padding:12px 14px;font-size:14.5px}
+.gen-grid .upload-zone{padding:26px 16px}
+.gen-grid .upload-icon{margin-bottom:4px}
+.gen-grid .upload-icon .i{width:32px;height:32px}
+.gen-grid .upload-title{font-size:15px}
+.gen-grid .refuel-wrap{min-height:0;margin-top:6px}
+.gen-grid .refuel-hint{margin-top:6px}
 #photos-card .card-body{display:flex}
 #photos-card .field{flex:1}
-#photos-card .field input[type=file]{flex:1;height:100%;min-height:110px;border:2px dashed rgba(0,0,0,.18);background:#FAFAFA;border-radius:0.65rem;display:flex;align-items:center;justify-content:center;padding:16px}
+#photos-card .field input[type=file]{flex:1;height:100%;min-height:104px;border:2px dashed rgba(0,0,0,.18);background:#FAFAFA;border-radius:0.65rem;display:flex;align-items:center;justify-content:center;padding:14px}
 #photos-card .field input[type=file]:hover{border-color:var(--primary)}
-@media(min-width:881px){
-  #gps-card{order:1}#photos-card{order:2}#driver-card{order:3}#target-korekta-card{order:4}#refuel-card{order:5}.gen-actions{order:6}
-}
+.gen-actions{position:sticky;bottom:0;z-index:5;padding:10px 0 8px;margin-top:-4px;background:linear-gradient(to bottom,rgba(48,48,48,0),var(--background) 28%)}
+.gen-actions .btn{padding:16px}
+.gen-actions .progress{margin-top:10px}
+.gen-actions .status{margin-top:10px;padding:11px 14px}
+
+/* ── Animacje ────────────────────────────────────────────────────────── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:translateY(-6px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes sheen{from{transform:translateX(-120%) skewX(-20deg)}to{transform:translateX(320%) skewX(-20deg)}}
+@keyframes pulseRing{0%{box-shadow:0 0 0 0 rgba(255,87,36,.45)}100%{box-shadow:0 0 0 14px rgba(255,87,36,0)}}
+.tab-view:not([hidden]){animation:fadeIn .35s ease backwards}
+.topbar{animation:fadeUp .45s ease backwards}
+.sidebar{animation:fadeIn .5s ease backwards}
+.sidebar .tab{transition:background .18s,color .18s,transform .18s,box-shadow .18s}
+.sidebar .tab:hover:not(.active){transform:translateX(3px)}
+.sidebar .tab .i{transition:transform .2s}
+.sidebar .tab:hover .i{transform:scale(1.12)}
+.gen-grid > .card,.gen-col > .card,.gen-actions{animation:fadeUp .5s cubic-bezier(.2,.7,.2,1) backwards}
+#gps-card{animation-delay:.04s}#photos-card{animation-delay:.1s}#driver-card{animation-delay:.16s}#target-korekta-card{animation-delay:.22s}#refuel-card{animation-delay:.28s}.gen-actions{animation-delay:.34s}
+.card{transition:box-shadow .25s,border-color .25s}
+@media(hover:hover){.gen-grid .card:hover{box-shadow:0 1px 2px rgba(0,0,0,.08),0 14px 34px rgba(0,0,0,.2)}}
+.btn::after{content:'';position:absolute;top:0;bottom:0;left:0;width:34%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);transform:translateX(-120%) skewX(-20deg);pointer-events:none}
+.btn:hover:not(:disabled)::after{animation:sheen .8s ease}
+.upload-zone.drag{animation:pulseRing 1s ease infinite}
+.upload-zone .upload-icon{transition:transform .25s}
+.upload-zone:hover .upload-icon{transform:translateY(-3px)}
+.kpi{animation:fadeUp .5s cubic-bezier(.2,.7,.2,1) backwards;transition:transform .2s,box-shadow .2s}
+.kpi:nth-child(2){animation-delay:.06s}.kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.18s}
+@media(hover:hover){.kpi:hover{transform:translateY(-3px);box-shadow:0 1px 2px rgba(0,0,0,.08),0 14px 30px rgba(0,0,0,.22)}}
+.folder-year.open > .folder-content,.folder-month.open > .folder-content{animation:slideDown .28s ease backwards}
+.hist-row{animation:fadeIn .4s ease backwards}
+.hist-row:nth-child(2){animation-delay:.03s}.hist-row:nth-child(3){animation-delay:.06s}.hist-row:nth-child(4){animation-delay:.09s}.hist-row:nth-child(5){animation-delay:.12s}.hist-row:nth-child(n+6){animation-delay:.15s}
+.row-menu.open{animation:popIn .16s ease}
+.modal.open{animation:fadeIn .2s ease}
+.modal.open .modal-box{animation:fadeUp .3s ease}
+.login-card{animation:fadeUp .6s cubic-bezier(.2,.7,.2,1) backwards}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms !important;animation-delay:0s !important;transition-duration:.001ms !important}}
 [hidden]{display:none !important}
 </style>
 </head>
@@ -971,13 +1028,25 @@ function sumKm(list){return list.reduce((s,it)=>s+(Number(it.total_km)||0),0)}
 function renderKpis(items){
   const latest=items.reduce((m,it)=>it.created_at&&(!m||it.created_at>m)?it.created_at:m,'');
   const cards=[
-    ['sheet',String(items.length),'Ewidencje'],
-    ['route',fmtKm(sumKm(items)),'Suma przebiegu'],
-    ['car',String(new Set(items.map(it=>it.plate).filter(Boolean)).size),'Pojazdy'],
+    ['sheet',String(items.length),'Ewidencje',items.length,false],
+    ['route',fmtKm(sumKm(items)),'Suma przebiegu',sumKm(items),true],
+    ['car',String(new Set(items.map(it=>it.plate).filter(Boolean)).size),'Pojazdy',new Set(items.map(it=>it.plate).filter(Boolean)).size,false],
     ['calendar',latest?new Date(latest).toLocaleDateString('pl-PL'):'\u2013','Ostatnia generacja']
   ];
   document.getElementById('history-kpis').innerHTML=cards.map(c=>
-    '<div class="kpi"><div class="kpi-ic">'+ic(c[0])+'</div><div><div class="kpi-val">'+escapeHtml(c[1])+'</div><div class="kpi-lbl">'+c[2]+'</div></div></div>').join('');
+    '<div class="kpi"><div class="kpi-ic">'+ic(c[0])+'</div><div><div class="kpi-val"'+(c[3]!=null?' data-num="'+c[3]+'" data-km="'+(c[4]?1:0)+'"':'')+'>'+escapeHtml(c[1])+'</div><div class="kpi-lbl">'+c[2]+'</div></div></div>').join('');
+  document.querySelectorAll('#history-kpis .kpi-val[data-num]').forEach(countUp);
+}
+function countUp(el){
+  const target=Number(el.dataset.num),isKm=el.dataset.km==='1';
+  if(!isFinite(target)||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const fmt=v=>isKm?fmtKm(v):String(Math.round(v));
+  const t0=performance.now(),dur=700;
+  (function step(now){
+    const k=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-k,3);
+    el.textContent=fmt(target*e);
+    if(k<1)requestAnimationFrame(step);else el.textContent=fmt(target);
+  })(t0);
 }
 function buildHistoryRow(it){
   const plate=it.plate||'\u2014';
