@@ -209,10 +209,155 @@ h1{font-size:31px}
 .folder-year.open > .folder-content, .folder-month.open > .folder-content{display:block}
 .folder-title::before{content:'📁';margin-right:10px;font-size:1.1em}
 .folder-year.open > .folder-title::before, .folder-month.open > .folder-title::before{content:'📂'}
+/* ── Redesign v2: sidebar layout, solid cards, SVG icons (palette unchanged) ── */
+.i{width:1.15em;height:1.15em;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;vertical-align:-.2em}
+body{padding:20px}
+.card{background:#FFFFFF;backdrop-filter:none;-webkit-backdrop-filter:none;border:1px solid rgba(0,0,0,.06);box-shadow:0 1px 2px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.14)}
+.card-head{background:#FAFAFA}
+.card-head .icon{background:var(--primary-soft);color:var(--primary);font-size:0}
+.card-head .icon .i{width:19px;height:19px}
+.upload-zone{background:#FAFAFA;backdrop-filter:none;-webkit-backdrop-filter:none}
+.upload-icon{color:var(--primary);margin-bottom:10px}
+.upload-icon .i{width:34px;height:34px;stroke-width:1.6}
+.tag{background:#FFFBEB}
+.info-box{background:var(--surface);backdrop-filter:none;-webkit-backdrop-filter:none;border:1px solid rgba(255,255,255,.08)}
+.info-box .i{color:var(--primary);width:18px;height:18px;margin-top:2px}
+
+/* layout */
+#view-app{display:grid;grid-template-columns:236px minmax(0,1fr);gap:20px;flex:1;min-height:0}
+.sidebar{background:var(--surface);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);padding:18px 14px;display:flex;flex-direction:column;gap:6px;min-height:0;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:12px;padding:2px 6px 18px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,.08)}
+.brand .logo-badge{width:44px;height:44px;border-radius:12px;font-size:12px}
+.brand-name{font-family:var(--font-display);font-weight:700;font-size:15px;line-height:1.2;color:#FFFFFF}
+.brand-name small{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);font-weight:600;margin-top:2px}
+.nav-label{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2);font-weight:600;padding:8px 10px 4px;font-family:var(--font-display)}
+.sidebar .tab{flex:none;min-width:0;display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;border:1px solid transparent;backdrop-filter:none;-webkit-backdrop-filter:none;color:var(--muted);padding:11px 12px;font-size:14.5px;border-radius:0.6rem;box-shadow:none}
+.sidebar .tab .i{width:19px;height:19px}
+.sidebar .tab:hover{background:rgba(255,255,255,.07);color:#FFFFFF}
+.sidebar .tab.active{background:var(--primary);color:#FFFFFF;box-shadow:0 6px 18px rgba(255,87,36,.28)}
+.side-foot{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:10px}
+.side-user{display:flex;align-items:center;gap:10px;min-width:0}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;font-family:var(--font-display);flex-shrink:0;text-transform:uppercase}
+.side-user .email{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.side-foot .link-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.topbar{margin:2px 2px 18px;flex-shrink:0}
+.topbar h1{font-size:26px}
+.topbar p{font-size:13.5px;color:var(--muted);margin-top:4px}
+
+/* buttons */
+.btn svg.i{width:19px;height:19px}
+.install-btn .i{width:17px;height:17px}
+.btn-sec,.btn-act{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:0.55rem;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;font-family:var(--font-body);line-height:1.2;white-space:nowrap;transition:background .15s,border-color .15s}
+.btn-act{background:var(--primary);border:1px solid var(--primary);color:#FFFFFF}
+.btn-act:hover{background:var(--primary-hover);border-color:var(--primary-hover)}
+.btn-act .i,.btn-sec .i{width:15px;height:15px}
+.btn-sec{background:#FFFFFF;border:1px solid #D1D5DB;color:var(--card-foreground)}
+.btn-sec:hover{background:#F3F4F6}
+.dl-btn,.pv-btn{display:inline-flex;align-items:center;gap:7px}
+
+/* history */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.kpi{background:#FFFFFF;border-radius:var(--radius);padding:16px 18px;color:var(--card-foreground);display:flex;align-items:center;gap:14px;box-shadow:0 1px 2px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.14);min-width:0}
+.kpi-ic{width:42px;height:42px;border-radius:0.7rem;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-ic .i{width:21px;height:21px}
+.kpi-val{font-family:var(--font-display);font-size:22px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi-lbl{font-size:12px;color:var(--muted-2);margin-top:3px;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.hist-toolbar{padding:14px 18px;border-bottom:1px solid var(--border);background:#FAFAFA}
+.search{position:relative;max-width:460px}
+.search .i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted-2);width:17px;height:17px;pointer-events:none}
+.search input{width:100%;background:#FFFFFF;border:1.5px solid #D1D5DB;border-radius:0.55rem;padding:11px 14px 11px 40px;color:var(--card-foreground);font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .18s,box-shadow .18s}
+.search input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(255,87,36,.15)}
+.search input::placeholder{color:#9CA3AF}
+.hist-head,.hist-row{display:grid;grid-template-columns:minmax(150px,1.5fr) minmax(120px,1.1fr) minmax(190px,1.2fr) 92px 128px 150px;column-gap:14px;align-items:center}
+.hist-head{padding:10px 18px;background:#F3F4F6;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted-2);font-family:var(--font-display)}
+.hist-head .num,.hist-row .num{text-align:right;font-variant-numeric:tabular-nums}
+.hist-row{padding:12px 18px;border-top:1px solid #EEF0F2;font-size:13.5px;color:var(--card-foreground);transition:background .12s}
+.hist-row:hover{background:#FFF7F3}
+.hist-row .plate{font-weight:700;font-family:var(--font-display);font-size:14.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hist-row .sub{font-size:12px;color:var(--muted-2);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-row .c-km{font-weight:700;font-variant-numeric:tabular-nums}
+.hist-row .c-created,.hist-row .c-period{color:var(--muted-2);font-size:12.5px}
+.hist-row .c-driver{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-row .c-act{display:flex;align-items:center;justify-content:flex-end;gap:6px;position:relative}
+.chip-photo{display:inline-flex;align-items:center;gap:4px;background:#ECFDF3;color:#15803D;border:1px solid #BBF7D0;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font-body)}
+.chip-photo .i{width:12px;height:12px}
+.more-btn{width:34px;height:32px;display:inline-flex;align-items:center;justify-content:center;background:#FFFFFF;border:1px solid #D1D5DB;border-radius:0.55rem;color:var(--muted-2);cursor:pointer}
+.more-btn:hover{background:#F3F4F6;color:var(--card-foreground)}
+.more-btn .i{fill:currentColor;stroke:none;width:17px;height:17px}
+.row-menu{display:none;position:fixed;z-index:60;min-width:190px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:0.7rem;box-shadow:0 12px 36px rgba(0,0,0,.28);padding:6px}
+.row-menu.open{display:block}
+.row-menu button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;text-align:left;padding:9px 11px;border-radius:0.45rem;font-size:13.5px;color:var(--card-foreground);cursor:pointer;font-family:var(--font-body)}
+.row-menu button:hover{background:#F3F4F6}
+.row-menu button.danger{color:#B91C1C}
+.row-menu button.danger:hover{background:#FEF2F2}
+.row-menu hr{border:none;border-top:1px solid #EEF0F2;margin:5px 0}
+.row-menu .i{width:16px;height:16px;color:var(--muted-2)}
+.row-menu .danger .i{color:#B91C1C}
+.folder-title{background:#FFFFFF;border-radius:0;margin:0;padding:11px 18px;border-top:1px solid var(--border);font-family:var(--font-display);color:var(--card-foreground);gap:10px}
+.folder-title:hover{background:#FAFAFA}
+.folder-title::before{content:'';width:7px;height:7px;border-right:2px solid var(--muted-2);border-bottom:2px solid var(--muted-2);transform:rotate(-45deg);margin:0 6px 0 2px;font-size:0;transition:transform .15s}
+.folder-year.open > .folder-title::before,.folder-month.open > .folder-title::before{content:'';transform:rotate(45deg)}
+.folder-year > .folder-title{background:#F3F4F6;font-size:15px}
+.folder-month > .folder-title{background:#FAFAFA;font-size:14px;padding-left:34px}
+.folder-title .meta{margin-left:auto;font-size:12px;font-weight:600;color:var(--muted-2);font-family:var(--font-body);font-variant-numeric:tabular-nums}
+.folder-content{padding:0;margin:0;border-left:none}
+.list-item{padding:12px 18px}
+.list-item .li-sub{font-size:12.5px}
+.del-btn{background:#FFFFFF;border:1px solid #FECACA;color:#B91C1C}
+.del-btn:hover{background:#FEF2F2}
+.empty{color:var(--muted-2)}
+.modal-box{background:#FFFFFF;backdrop-filter:none;-webkit-backdrop-filter:none}
+
+/* responsive */
+@media(max-width:1180px){.hist-head,.hist-row{grid-template-columns:minmax(140px,1.4fr) minmax(110px,1fr) minmax(170px,1.1fr) 84px 140px}.hist-head .h-created,.hist-row .c-created{display:none}}
+@media(max-width:880px){
+  body{padding:12px}
+  #view-app{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);gap:12px}
+  .sidebar{flex-direction:row;align-items:center;gap:6px;padding:10px;overflow:visible}
+  .brand{border:none;padding:0 8px 0 2px;margin:0}.brand-name,.nav-label{display:none}
+  .sidebar .tab{width:auto;flex:1;justify-content:center;padding:10px 8px;font-size:13px}
+  .side-foot{margin:0;padding:0;border:none;flex-direction:row;align-items:center}
+  .side-user .email,.side-foot .link-btn span{display:none}.side-foot .link-btn{width:auto;padding:8px 10px}
+  .topbar h1{font-size:21px}.topbar{margin-bottom:12px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hist-head{display:none}
+  .hist-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"veh km" "drv act" "per per";row-gap:6px}
+  .hist-row .c-veh{grid-area:veh}.hist-row .c-km{grid-area:km}.hist-row .c-driver{grid-area:drv}.hist-row .c-act{grid-area:act}.hist-row .c-period{grid-area:per}
+  .hist-row .c-created{display:none}
+}
+@media(max-width:520px){.sidebar .tab span{display:none}.kpi{padding:12px 14px;gap:10px}.kpi-ic{display:none}.kpi-val{font-size:17px}.kpi-lbl{font-size:11px}}
+.field input[type=file]{padding:8px 10px;font-size:13.5px;color:var(--muted-2);cursor:pointer}
+.field input[type=file]::file-selector-button{margin-right:12px;background:var(--primary-soft);color:var(--primary);border:1px solid rgba(255,87,36,.4);border-radius:0.5rem;padding:7px 14px;font-weight:600;font-family:var(--font-body);font-size:13px;cursor:pointer}
+.field input[type=file]::file-selector-button:hover{background:rgba(255,87,36,.18)}
 [hidden]{display:none !important}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+<symbol id="i-history" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-truck" viewBox="0 0 24 24"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+<symbol id="i-fuel" viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 21h12"/><path d="M14 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3"/><path d="M7 8h4"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M4 16v4h16v-4"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5V3h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></symbol>
+<symbol id="i-sheet" viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></symbol>
+<symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/></symbol>
+<symbol id="i-car" viewBox="0 0 24 24"><path d="M5 16v-5l2-5h10l2 5v5"/><path d="M3 16h18v3H3z"/><path d="M7 16v-2M17 16v-2"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+</defs></svg>
 <div class="wrap">
 
   <!-- ── LOGOWANIE ─────────────────────────────────────────────────────── -->
@@ -238,7 +383,7 @@ h1{font-size:31px}
             <label>HAS&#x141;O</label>
             <input type="password" id="auth_password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password">
           </div>
-          <button class="btn" id="auth_btn" onclick="doAuth()"><span id="auth_btn_text">&#x1F512; Zaloguj si&#x119;</span></button>
+          <button class="btn" id="auth_btn" onclick="doAuth()"><span id="auth_btn_text">Zaloguj si&#x119;</span></button>
           <div class="auth-divider">lub</div>
           <button class="btn-google" id="google_btn" onclick="googleLogin()">
             <svg viewBox="0 0 24 24" width="20" height="20" aria-label="Google">
@@ -260,7 +405,7 @@ h1{font-size:31px}
             <label>POWT&Oacute;RZ NOWE HAS&#x141;O</label>
             <input type="password" id="reset_password2" placeholder="powt&oacute;rz has&#322;o" autocomplete="new-password">
           </div>
-          <button class="btn" id="reset_btn" onclick="doPasswordReset()"><span>&#x1F512; Ustaw nowe has&#x322;o</span></button>
+          <button class="btn" id="reset_btn" onclick="doPasswordReset()"><span>Ustaw nowe has&#x322;o</span></button>
         </div>
         <div class="status" id="auth_status"><div class="si"></div><div></div></div>
         <div class="auth-toggle" id="auth_toggle">
@@ -275,31 +420,33 @@ h1{font-size:31px}
 
   <!-- ── APLIKACJA ─────────────────────────────────────────────────────── -->
   <div id="view-app" hidden>
-    <div class="header">
-      <div class="header-row">
-        <div class="logo" style="margin-bottom:0">
-          <div class="logo-badge">
-            <span>SW</span>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="#FF5724" aria-label="car">
-              <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
-            </svg>
-          </div>
-          <div>
-            <div class="logo-text">Smart Work Sp. z o.o.</div>
-          </div>
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo-badge">
+          <span>SW</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="#FF5724" aria-label="car">
+            <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+          </svg>
         </div>
-        <div class="user-info">
-          <span class="email" id="user-email"></span>
-          <button class="link-btn" onclick="logout()">Wyloguj</button>
-        </div>
+        <div class="brand-name">Ewidencja<small>Smart Work</small></div>
       </div>
-      <h1>Generator Ewidencji<br>Przebiegu Pojazdu</h1>
-    </div>
+      <div class="nav-label">Menu</div>
+      <button class="tab active" id="tab-generate" onclick="switchTab('generate')"><svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg><span>Generuj</span></button>
+      <button class="tab" id="tab-history" onclick="switchTab('history')"><svg class="i" aria-hidden="true"><use href="#i-history"/></svg><span>Historia</span></button>
+      <button class="tab" id="tab-db" onclick="switchTab('db')"><svg class="i" aria-hidden="true"><use href="#i-truck"/></svg><span>Pojazdy i kierowcy</span></button>
+      <div class="side-foot">
+        <div class="side-user">
+          <div class="avatar" id="user-avatar">?</div>
+          <span class="email" id="user-email"></span>
+        </div>
+        <button class="link-btn" onclick="logout()"><svg class="i" aria-hidden="true"><use href="#i-logout"/></svg><span>Wyloguj</span></button>
+      </div>
+    </aside>
 
-    <div class="tabs">
-      <button class="tab active" id="tab-generate" onclick="switchTab('generate')">&#x26A1; Generuj</button>
-      <button class="tab" id="tab-history" onclick="switchTab('history')">&#x1F4C1; Historia</button>
-      <button class="tab" id="tab-db" onclick="switchTab('db')">&#x1F4E6; Pojazdy i kierowcy</button>
+    <main class="main">
+    <div class="topbar">
+      <h1 id="page-title">Generator ewidencji</h1>
+      <p id="page-sub">Przebieg pojazdu na podstawie raportu GPS</p>
     </div>
 
     <!-- ── GENERUJ ── -->
@@ -309,7 +456,7 @@ h1{font-size:31px}
 
       <div class="card" id="gps-card">
         <div class="card-head">
-          <div class="icon">&#x1F4CD;</div>
+          <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg></div>
           <div class="card-head-text">
             <h3>Plik GPS</h3>
             <p>Raport z trackera pojazdu (.XLS lub .XLSX)</p>
@@ -318,7 +465,7 @@ h1{font-size:31px}
         <div class="card-body">
           <div class="upload-zone" id="zone">
             <input type="file" id="gps_file" accept=".xls,.xlsx" onchange="handleFile(this)">
-            <span class="upload-icon">&#x1F4C2;</span>
+            <span class="upload-icon"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg></span>
             <div class="upload-title" id="file-title">Kliknij lub przeci&#x105;gnij plik tutaj</div>
             <div class="upload-hint" id="file-hint">.XLS &#xB7; .XLSX &#xB7; max 50 MB</div>
             <div class="upload-badge" id="file-badge">&#x2713; plik wgrany</div>
@@ -328,7 +475,7 @@ h1{font-size:31px}
 
       <div class="card">
         <div class="card-head">
-          <div class="icon">&#x1F464;</div>
+          <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg></div>
           <div class="card-head-text">
             <h3>Dane kierowcy</h3>
             <p>Imi&#x119; i nazwisko pojawi si&#x119; we wszystkich wierszach z km</p>
@@ -371,7 +518,7 @@ h1{font-size:31px}
 
       <div class="card" id="target-korekta-card">
         <div class="card-head">
-          <div class="icon">&#x1F3AF;</div>
+          <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-target"/></svg></div>
           <div class="card-head-text">
             <h3>Korekta ko&#x144;cowego przebiegu (Opcjonalnie)</h3>
             <p>Pocz&#x105;tkowy i ko&#x144;cowy stan licznika obok siebie</p>
@@ -398,7 +545,7 @@ h1{font-size:31px}
       </div>
       <div class="card">
         <div class="card-head">
-          <div class="icon">&#x1F4F7;</div>
+          <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg></div>
           <div class="card-head-text">
             <h3>Zdj&#x119;cia przebiegu (Opcjonalnie)</h3>
             <p>Za&#x142;&#x105;cz zdj&#x119;cia licznika, zostan&#x105; zapisane w historii</p>
@@ -413,7 +560,7 @@ h1{font-size:31px}
 
       <div class="card">
         <div class="card-head">
-          <div class="icon">&#x26FD;</div>
+          <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-fuel"/></svg></div>
           <div class="card-head-text">
             <h3>Dni tankowania</h3>
             <p>Wpisz daty &#x2013; pojawi&#x105; si&#x119; w kolumnie Uwagi jako "tankowanie"</p>
@@ -425,20 +572,20 @@ h1{font-size:31px}
             <input type="text" id="refuel_input" placeholder="np. 5.12 lub 05.12.2025" autocomplete="off">
           </div>
           <div class="refuel-wrap" id="refuel-tags"></div>
-          <div class="refuel-hint">&#x1F4CC; Format: DD.MM lub DD.MM.RRRR &nbsp;|&nbsp; Mo&#x17C;esz doda&#x107; wiele dat</div>
+          <div class="refuel-hint">Format: DD.MM lub DD.MM.RRRR &nbsp;|&nbsp; Mo&#x17C;esz doda&#x107; wiele dat</div>
         </div>
       </div>
 
-      <button class="install-btn" id="install-btn" onclick="installApp()">&#x2B07; Zainstaluj aplikacj&#x119; na urz&#x105;dzeniu</button>
+      <button class="install-btn" id="install-btn" onclick="installApp()"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg> Zainstaluj aplikacj&#x119; na urz&#x105;dzeniu</button>
       <button class="btn" id="btn" onclick="generate()">
         <div class="spinner" id="spinner"></div>
-        <span id="btn-text">&#x26A1; Generuj ewidencj&#x119; Excel</span>
+        <svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg><span id="btn-text">Generuj ewidencj&#x119; Excel</span>
       </button>
       <div class="progress" id="progress"><div class="progress-bar" id="pbar"></div></div>
       <div class="status" id="status"><div class="si" id="s-icon"></div><div id="s-msg"></div></div>
 
       <div class="info-box">
-        <div style="font-size:16px;flex-shrink:0">&#x1F4A1;</div>
+        <svg class="i" aria-hidden="true"><use href="#i-info"/></svg>
         <div>Aplikacja odczytuje dane GPS, sumuje kilometry per dzie&#x144; i tworzy plik Excel. Ka&#x17C;da wygenerowana ewidencja jest zapisywana w historii (Supabase). Weekendy automatycznie sumowane na pi&#x105;tek. <strong style="color:#FF5724">Nie wymaga LibreOffice.</strong></div>
       </div>
 
@@ -448,20 +595,16 @@ h1{font-size:31px}
 
     <!-- ── HISTORIA ── -->
     <div id="view-history" class="tab-view" hidden>
+      <div class="kpis" id="history-kpis"></div>
       <div class="card">
-        <div class="card-head">
-          <div class="icon">&#x1F4C1;</div>
-          <div class="card-head-text">
-            <h3>Historia ewidencji</h3>
-            <p>Wszystkie wygenerowane pliki (zapisane w Supabase)</p>
+        <div class="hist-toolbar">
+          <div class="search">
+            <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+            <input type="text" id="history_search" placeholder="Szukaj: pojazd, kierowca, okres..." oninput="filterHistory()" autocomplete="off">
           </div>
         </div>
-        <div class="card-body" style="padding:0">
-          <div style="padding:16px; border-bottom:1px solid #333;">
-            <input type="text" id="history_search" placeholder="Szukaj w historii (kierowca, auto, data)..." oninput="filterHistory()" autocomplete="off">
-          </div>
-          <div id="history-list"><div class="empty">&#x23F3; &#x141;adowanie...</div></div>
-        </div>
+        <div class="hist-head"><div>Pojazd</div><div>Kierowca</div><div>Okres</div><div class="num">Przebieg</div><div class="h-created">Utworzono</div><div></div></div>
+        <div id="history-list"><div class="empty">&#x141;adowanie...</div></div>
       </div>
     </div>
 
@@ -469,7 +612,7 @@ h1{font-size:31px}
     <div id="view-db" class="tab-view" hidden>
       <div class="card">
         <div class="card-head">
-          <div class="icon">&#x1F4E6;</div>
+          <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-truck"/></svg></div>
           <div class="card-head-text">
             <h3>Baza pojazd&#xF3;w</h3>
             <p>Zapisane pojazdy dla szybkiego wyboru</p>
@@ -500,7 +643,7 @@ h1{font-size:31px}
 
       <div class="card">
         <div class="card-head">
-          <div class="icon">&#x1F464;</div>
+          <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg></div>
           <div class="card-head-text">
             <h3>Dodaj kierowc&#x119;</h3>
             <p>Pojawi si&#x119; w li&#x15B;cie wyboru w formularzu generowania</p>
@@ -522,6 +665,7 @@ h1{font-size:31px}
       </div>
     </div>
 
+    </main>
   </div>
 </div>
 <script>
@@ -590,6 +734,7 @@ function showApp(){
   document.getElementById('view-login').hidden=true;
   document.getElementById('view-app').hidden=false;
   document.getElementById('user-email').textContent=currentUser.email||'';
+  document.getElementById('user-avatar').textContent=(currentUser.email||'?').charAt(0);
   switchTab('generate');
   loadVehicles();loadDrivers();loadHistory();
 }
@@ -598,7 +743,7 @@ function showApp(){
 let authMode='login';
 function toggleAuthMode(){
   authMode=authMode==='login'?'register':'login';
-  document.getElementById('auth_btn_text').textContent=authMode==='login'?'\u{1F512} Zaloguj si\u0119':'\u2728 Utw\u00F3rz konto';
+  document.getElementById('auth_btn_text').textContent=authMode==='login'?'Zaloguj si\u0119':'Utw\u00F3rz konto';
   document.getElementById('auth_toggle').innerHTML=authMode==='login'
     ?'Nie masz konta? <button onclick="toggleAuthMode()">Zarejestruj si\u0119</button>'
     :'Masz ju\u017C konto? <button onclick="toggleAuthMode()">Zaloguj si\u0119</button>';
@@ -689,6 +834,10 @@ function switchTab(name){
   document.getElementById('view-generate').hidden=name!=='generate';
   document.getElementById('view-history').hidden=name!=='history';
   document.getElementById('view-db').hidden=name!=='db';
+  const T={generate:['Generator ewidencji','Przebieg pojazdu na podstawie raportu GPS'],history:['Historia ewidencji','Wszystkie wygenerowane pliki, zapisane w Supabase'],db:['Pojazdy i kierowcy','Baza do szybkiego wyboru w formularzu']};
+  document.getElementById('page-title').textContent=T[name][0];
+  document.getElementById('page-sub').textContent=T[name][1];
+  closeRowMenus();
   if(name==='history')loadHistory();
   if(name==='db'){loadVehicles();loadDrivers()}
 }
@@ -796,16 +945,79 @@ function onDriverChange(){
 }
 
 // ── History ──────────────────────────────────────────────────────────────────
+function ic(n){return '<svg class="i" aria-hidden="true"><use href="#i-'+n+'"/></svg>'}
+function fmtDate(iso){
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||'');
+  return m?m[3]+'.'+m[2]+'.'+m[1]:(iso||'?');
+}
+function fmtKm(n){return Number(n||0).toLocaleString('pl-PL',{maximumFractionDigits:1,useGrouping:'always'})+' km'}
+function plFiles(n){
+  if(n===1)return '1 plik';
+  const d=n%10,t=n%100;
+  return n+((d>=2&&d<=4&&!(t>=12&&t<=14))?' pliki':' plik\u00F3w');
+}
+function sumKm(list){return list.reduce((s,it)=>s+(Number(it.total_km)||0),0)}
+function renderKpis(items){
+  const latest=items.reduce((m,it)=>it.created_at&&(!m||it.created_at>m)?it.created_at:m,'');
+  const cards=[
+    ['sheet',String(items.length),'Ewidencje'],
+    ['route',fmtKm(sumKm(items)),'Suma przebiegu'],
+    ['car',String(new Set(items.map(it=>it.plate).filter(Boolean)).size),'Pojazdy'],
+    ['calendar',latest?new Date(latest).toLocaleDateString('pl-PL'):'\u2013','Ostatnia generacja']
+  ];
+  document.getElementById('history-kpis').innerHTML=cards.map(c=>
+    '<div class="kpi"><div class="kpi-ic">'+ic(c[0])+'</div><div><div class="kpi-val">'+escapeHtml(c[1])+'</div><div class="kpi-lbl">'+c[2]+'</div></div></div>').join('');
+}
+function buildHistoryRow(it){
+  const plate=it.plate||'\u2014';
+  const model=it.car_model||'';
+  const driver=it.driver_name||'\u2014';
+  const period=fmtDate(it.period_start)+' \u2013 '+fmtDate(it.period_end);
+  const created=it.created_at?new Date(it.created_at).toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'}):'';
+  const fname=it.file_name||'ewidencja.xlsx';
+  const nPhotos=Array.isArray(it.photo_urls)?it.photo_urls.length:0;
+  const b64=nPhotos?btoa(JSON.stringify(it.photo_urls)):'';
+  const row=document.createElement('div');
+  row.className='hist-row';
+  row.dataset.search=[plate,model,driver,period,fname,created].join(' ').toLowerCase();
+  row.innerHTML=
+    '<div class="c-veh"><div class="plate">'+escapeHtml(plate)+
+      (nPhotos?'<button class="chip-photo" title="Zdj\u0119cia" onclick="openPhotos(\''+b64+'\')">'+ic('camera')+nPhotos+'</button>':'')+
+      '</div><div class="sub">'+escapeHtml(model||'\u2013')+'</div></div>'+
+    '<div class="c-driver" title="'+escapeHtml(driver)+'">'+escapeHtml(driver)+'</div>'+
+    '<div class="c-period">'+escapeHtml(period)+'</div>'+
+    '<div class="c-km num">'+escapeHtml(fmtKm(it.total_km))+'</div>'+
+    '<div class="c-created">'+escapeHtml(created)+'</div>'+
+    '<div class="c-act">'+
+      (it.download_url?'<a class="btn-act" href="'+it.download_url+'" target="_blank" rel="noopener">'+ic('download')+'Pobierz</a>':'')+
+      '<button class="more-btn" aria-label="Wi\u0119cej akcji" onclick="toggleRowMenu(event,this)">'+ic('more')+'</button>'+
+      '<div class="row-menu">'+
+        (it.download_url?'<button onclick="openPreview(\''+it.download_url+'\',\''+escapeHtml(fname)+'\')">'+ic('eye')+'Podgl\u0105d</button>':'')+
+        '<button onclick="addPhotoToEwidencja(\''+it.id+'\')">'+ic('plus')+'Dodaj zdj\u0119cie</button>'+
+        (nPhotos?'<button onclick="openPhotos(\''+b64+'\')">'+ic('camera')+'Zdj\u0119cia ('+nPhotos+')</button>':'')+
+        '<hr><button class="danger" onclick="delEwidencja(\''+it.id+'\')">'+ic('trash')+'Usu\u0144</button>'+
+      '</div>'+
+    '</div>';
+  return row;
+}
+function folderHeader(label,list){
+  const t=document.createElement('div');
+  t.className='folder-title';
+  t.onclick=function(){this.parentElement.classList.toggle('open')};
+  t.innerHTML='<span>'+escapeHtml(label)+'</span><span class="meta">'+plFiles(list.length)+' \u00B7 '+escapeHtml(fmtKm(sumKm(list)))+'</span>';
+  return t;
+}
 async function loadHistory(){
   const el=document.getElementById('history-list');
   try{
     const items=await api('/api/ewidencje').then(r=>r.json());
+    renderKpis(items);
     if(!items.length){el.innerHTML='<div class="empty">Brak wygenerowanych ewidencji.</div>';return}
     const openKeys=new Set([...el.querySelectorAll('.folder-year.open,.folder-month.open')].map(f=>f.dataset.key));
     el.innerHTML='';
     const groups={};
     for(const it of items){
-      let y='Nieznany rok', m='00|Nieznany miesiąc';
+      let y='Nieznany rok', m='00|Nieznany miesi\u0105c';
       if(it.period_start){
         const d=new Date(it.period_start);
         if(!isNaN(d)){
@@ -818,84 +1030,66 @@ async function loadHistory(){
       if(!groups[y][m])groups[y][m]=[];
       groups[y][m].push(it);
     }
-    const years=Object.keys(groups).sort().reverse();
-    for(const y of years){
-      const fy=document.createElement('div');fy.className='folder-year';fy.dataset.key=y;if(openKeys.has(y))fy.classList.add('open');
-      fy.innerHTML='<div class="folder-title" onclick="this.parentElement.classList.toggle(\'open\')">'+escapeHtml(y)+'</div>';
+    for(const y of Object.keys(groups).sort().reverse()){
+      const fy=document.createElement('div');fy.className='folder-year';fy.dataset.key=y;
+      if(openKeys.has(y))fy.classList.add('open');
+      fy.appendChild(folderHeader(y,Object.values(groups[y]).flat()));
       const c1=document.createElement('div');c1.className='folder-content';
-      
-      const months=Object.keys(groups[y]).sort().reverse();
-      for(const m of months){
-        const mName=m.split('|')[1];
-        const fm=document.createElement('div');fm.className='folder-month';fm.dataset.key=y+'/'+m;if(openKeys.has(fm.dataset.key))fm.classList.add('open');
-        fm.innerHTML='<div class="folder-title" onclick="this.parentElement.classList.toggle(\'open\')">'+escapeHtml(mName)+'</div>';
+      for(const m of Object.keys(groups[y]).sort().reverse()){
+        const fm=document.createElement('div');fm.className='folder-month';fm.dataset.key=y+'/'+m;
+        if(openKeys.has(fm.dataset.key))fm.classList.add('open');
+        fm.appendChild(folderHeader(m.split('|')[1],groups[y][m]));
         const c2=document.createElement('div');c2.className='folder-content';
-        
-        for(const it of groups[y][m]){
-          const row=document.createElement('div');row.className='list-item';
-          const period=(it.period_start||'?')+' \u2192 '+(it.period_end||'?');
-          const sub=[it.plate,it.car_model,it.driver_name].filter(Boolean).join(' \u00B7 ')||period;
-          const km=it.total_km!=null?Number(it.total_km).toLocaleString('pl-PL')+' km':'';
-          const created=it.created_at?new Date(it.created_at).toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'}):'';
-          let photosBtn='';
-          if(it.photo_urls && Array.isArray(it.photo_urls) && it.photo_urls.length>0){
-              const b64=btoa(JSON.stringify(it.photo_urls));
-              photosBtn='<button class="pv-btn" style="background:#4caf50;color:#fff;border:none;margin-right:6px" onclick="openPhotos(\''+b64+'\')">&#x1F4F8; Zdj\u0119cia ('+it.photo_urls.length+')</button>';
-          }
-          row.innerHTML=
-            '<div class="li-info"><div class="li-title">'+escapeHtml(sub)+'</div>'+
-            '<div class="li-sub">'+escapeHtml(period)+(km?' &middot; '+escapeHtml(km):'')+(created?' &middot; '+escapeHtml(created):'')+'</div></div>'+
-            photosBtn+
-            '<button class="pv-btn" onclick="addPhotoToEwidencja(\''+it.id+'\')">&#x2795; Dodaj zdj\u0119cie</button>'+
-            (it.download_url?'<button class="pv-btn" onclick="openPreview(\''+it.download_url+'\',\''+escapeHtml(it.file_name||'ewidencja.xlsx')+'\')">&#x1F4CA; Podgl\u0105d</button>':'')+
-            (it.download_url?'<a class="dl-btn" href="'+it.download_url+'" target="_blank" rel="noopener">&#x2B07; Pobierz</a>':'')+
-            '<button class="del-btn" onclick="delEwidencja(\''+it.id+'\')">Usu\u0144</button>';
-          c2.appendChild(row);
-        }
+        for(const it of groups[y][m])c2.appendChild(buildHistoryRow(it));
         fm.appendChild(c2);
         c1.appendChild(fm);
       }
       fy.appendChild(c1);
       el.appendChild(fy);
     }
+    filterHistory();
   }catch(err){
     el.innerHTML='<div class="empty">B\u0142\u0105d \u0142adowania historii: '+escapeHtml(err.message)+'</div>';
   }
 }
-function filterHistory() {
-  const q = document.getElementById('history_search').value.toLowerCase();
-  const list = document.getElementById('history-list');
-  const years = list.querySelectorAll('.folder-year');
-  
-  years.forEach(year => {
-    let yearHasVisible = false;
-    const months = year.querySelectorAll('.folder-month');
-    
-    months.forEach(month => {
-      let monthHasVisible = false;
-      const items = month.querySelectorAll('.list-item');
-      
-      items.forEach(item => {
-        const text = item.textContent.toLowerCase();
-        if (text.includes(q)) {
-          item.style.display = '';
-          monthHasVisible = true;
-          yearHasVisible = true;
-        } else {
-          item.style.display = 'none';
-        }
+function filterHistory(){
+  const q=document.getElementById('history_search').value.trim().toLowerCase();
+  const list=document.getElementById('history-list');
+  list.querySelectorAll('.folder-year').forEach(year=>{
+    let yearHas=false;
+    year.querySelectorAll('.folder-month').forEach(month=>{
+      let monthHas=false;
+      month.querySelectorAll('.hist-row').forEach(row=>{
+        const hit=!q||row.dataset.search.includes(q);
+        row.style.display=hit?'':'none';
+        if(hit){monthHas=true;yearHas=true}
       });
-      
-      month.style.display = monthHasVisible ? '' : 'none';
-      if (q && monthHasVisible) month.classList.add('open');
-      if (!q) month.classList.remove('open');
+      month.style.display=monthHas?'':'none';
+      if(q&&monthHas)month.classList.add('open');
     });
-    
-    year.style.display = yearHasVisible ? '' : 'none';
-    if (q && yearHasVisible) year.classList.add('open');
-    if (!q) year.classList.remove('open');
+    year.style.display=yearHas?'':'none';
+    if(q&&yearHas)year.classList.add('open');
   });
 }
+// ── Row action menu ──────────────────────────────────────────────────────────
+function closeRowMenus(except){
+  document.querySelectorAll('.row-menu.open').forEach(m=>{if(m!==except)m.classList.remove('open')});
+}
+function toggleRowMenu(e,btn){
+  e.stopPropagation();
+  const menu=btn.nextElementSibling;
+  closeRowMenus(menu);
+  const open=menu.classList.toggle('open');
+  if(!open)return;
+  const r=btn.getBoundingClientRect();
+  const h=menu.offsetHeight,w=menu.offsetWidth;
+  const top=(r.bottom+6+h>window.innerHeight)?Math.max(8,r.top-6-h):r.bottom+6;
+  menu.style.top=top+'px';
+  menu.style.left=Math.max(8,r.right-w)+'px';
+}
+document.addEventListener('click',()=>closeRowMenus());
+document.addEventListener('scroll',()=>closeRowMenus(),true);
+window.addEventListener('resize',()=>closeRowMenus());
 function delEwidencja(id){
   if(!confirm('Usun\u0105\u0107 t\u0119 ewidencj\u0119 z historii?'))return;
   try{api('/api/ewidencje/'+id,{method:'DELETE'}).then(()=>loadHistory())}
@@ -995,7 +1189,7 @@ async function generate(){
     showStatus('ok','\u2713','Plik "'+name+'" pobrany i zapisany w historii!');
     loadHistory();
   }catch(err){stopProgress();showStatus('err','\u2717','B\u0142\u0105d: '+err.message)}
-  finally{btn.disabled=false;spin.style.display='none';btxt.textContent='\u26A1 Generuj ewidencj\u0119 Excel'}
+  finally{btn.disabled=false;spin.style.display='none';btxt.textContent='Generuj ewidencj\u0119 Excel'}
 }
 
 // ── Podgląd Excel ─────────────────────────────────────────────────────────
@@ -1007,7 +1201,7 @@ function openPreview(url,name){
   const body=document.getElementById('xl-body');
   document.getElementById('xl-title').textContent=name||'Podgląd';
   modal.classList.add('open');
-  body.innerHTML='<div class="empty">&#x23F3; &#x141;adowanie pliku...</div>';
+  body.innerHTML='<div class="empty">&#x141;adowanie pliku...</div>';
   document.getElementById('xl-sheets').innerHTML='';
   fetch(url).then(r=>{
     if(!r.ok)throw new Error('Nie mo\u017Cna pobra\u0107 pliku ('+r.status+')');
@@ -1094,7 +1288,7 @@ async function downloadEdited(){
     btn.disabled=false;
   }
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closePreview()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePreview();closeRowMenus()}});
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function escapeHtml(s){
@@ -1112,7 +1306,7 @@ initSupabase().catch(err=>{
     <div class="modal-head">
       <h3 id="xl-title">Podgl&#x105;d</h3>
       <div>
-        <button id="xl-save-btn" class="dl-btn" style="margin-right:10px" onclick="downloadEdited()">&#x2B07; Zapisz i Pobierz</button>
+        <button id="xl-save-btn" class="dl-btn" style="margin-right:10px" onclick="downloadEdited()"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg> Zapisz i Pobierz</button>
         <button class="modal-close" onclick="closePreview()" aria-label="Zamknij">&#x2715;</button>
       </div>
     </div>
