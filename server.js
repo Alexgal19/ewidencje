@@ -14,6 +14,16 @@ const { requireAuth, isSupabaseConfigured, saveEwidencja, getVehicle, addPhotosT
 const app    = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
+const MONTH_NAMES_PL = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'];
+
+/** "07. ewidencja lipiec 31.07.2026 DSW3318E.xlsx" */
+function buildOutName(plate, year, month) {
+    const mm = String(month).padStart(2, '0');
+    const lastDay = String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, '0');
+    const plateClean = (plate || 'auto').replace(/[^a-zA-Z0-9]/g, '');
+    return `${mm}. ewidencja ${MONTH_NAMES_PL[month - 1]} ${lastDay}.${mm}.${year} ${plateClean}.xlsx`;
+}
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
@@ -148,7 +158,7 @@ app.post('/generate',
 
             // Save history record + upload file to Supabase Storage (best effort)
             const totalKm = Math.round([...agg.values()].reduce((s, v) => s + v.km, 0) * 100) / 100;
-            const outName = `ewidencja_${(plate || 'auto').replace(/[^a-zA-Z0-9]/g, '')}_${year}_${String(month).padStart(2, '0')}.xlsx`;
+            const outName = buildOutName(plate, year, month);
 
             const fallbackModel = veh && veh.make ? [veh.make, veh.model].filter(Boolean).join(' ') : (veh && veh.model) || '';
 
@@ -170,7 +180,8 @@ app.post('/generate',
             });
 
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            res.setHeader('Content-Disposition', `attachment; filename="${outName}"`);
+            const asciiName = outName.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l').replace(/[^ -~]/g, '_');
+            res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(outName)}`);
             res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
             res.send(xlsBuf);
 

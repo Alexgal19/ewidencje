@@ -982,8 +982,10 @@ async function generate(){
     if(!resp.ok){const data=await resp.json().catch(()=>({}));throw new Error(data.error||'B\u0142\u0105d serwera ('+resp.status+')')}
     const blob=await resp.blob();
     const cd=resp.headers.get('Content-Disposition')||'';
-    const m=cd.match(/filename[^=\n]*=(["']?)(.+?)\1/);
-    const name=m?m[2]:'ewidencja.xlsx';
+    const mu=cd.match(/filename\*=UTF-8''([^;]+)/i);
+    const m=cd.match(/filename=(["']?)(.+?)\1(;|$)/);
+    let name=m?m[2]:'ewidencja.xlsx';
+    if(mu){try{name=decodeURIComponent(mu[1])}catch(e){}}
     const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     showStatus('ok','\u2713','Plik "'+name+'" pobrany i zapisany w historii!');
     loadHistory();
