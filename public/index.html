@@ -330,6 +330,20 @@ body{padding:20px}
 .field input[type=file]{padding:8px 10px;font-size:13.5px;color:var(--muted-2);cursor:pointer}
 .field input[type=file]::file-selector-button{margin-right:12px;background:var(--primary-soft);color:var(--primary);border:1px solid rgba(255,87,36,.4);border-radius:0.5rem;padding:7px 14px;font-weight:600;font-family:var(--font-body);font-size:13px;cursor:pointer}
 .field input[type=file]::file-selector-button:hover{background:rgba(255,87,36,.18)}
+.gen-grid{align-items:stretch}
+.gen-col{display:contents}
+.gen-grid .card{margin-bottom:0;display:flex;flex-direction:column}
+.gen-grid .card-body{flex:1}
+.gen-actions{grid-column:1/-1;padding-bottom:8px}
+.gen-actions .install-btn{margin-bottom:12px}
+#refuel-card{grid-column:1/-1}
+#photos-card .card-body{display:flex}
+#photos-card .field{flex:1}
+#photos-card .field input[type=file]{flex:1;height:100%;min-height:110px;border:2px dashed rgba(0,0,0,.18);background:#FAFAFA;border-radius:0.65rem;display:flex;align-items:center;justify-content:center;padding:16px}
+#photos-card .field input[type=file]:hover{border-color:var(--primary)}
+@media(min-width:881px){
+  #gps-card{order:1}#photos-card{order:2}#driver-card{order:3}#target-korekta-card{order:4}#refuel-card{order:5}.gen-actions{order:6}
+}
 [hidden]{display:none !important}
 </style>
 </head>
@@ -473,7 +487,7 @@ body{padding:20px}
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="driver-card">
         <div class="card-head">
           <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-user"/></svg></div>
           <div class="card-head-text">
@@ -543,7 +557,7 @@ body{padding:20px}
           </div>
         </div>
       </div>
-      <div class="card">
+      <div class="card" id="photos-card">
         <div class="card-head">
           <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg></div>
           <div class="card-head-text">
@@ -558,7 +572,7 @@ body{padding:20px}
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="refuel-card">
         <div class="card-head">
           <div class="icon"><svg class="i" aria-hidden="true"><use href="#i-fuel"/></svg></div>
           <div class="card-head-text">
@@ -576,6 +590,7 @@ body{padding:20px}
         </div>
       </div>
 
+      <div class="gen-actions">
       <button class="install-btn" id="install-btn" onclick="installApp()"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg> Zainstaluj aplikacj&#x119; na urz&#x105;dzeniu</button>
       <button class="btn" id="btn" onclick="generate()">
         <div class="spinner" id="spinner"></div>
@@ -583,10 +598,6 @@ body{padding:20px}
       </button>
       <div class="progress" id="progress"><div class="progress-bar" id="pbar"></div></div>
       <div class="status" id="status"><div class="si" id="s-icon"></div><div id="s-msg"></div></div>
-
-      <div class="info-box">
-        <svg class="i" aria-hidden="true"><use href="#i-info"/></svg>
-        <div>Aplikacja odczytuje dane GPS, sumuje kilometry per dzie&#x144; i tworzy plik Excel. Ka&#x17C;da wygenerowana ewidencja jest zapisywana w historii (Supabase). Weekendy automatycznie sumowane na pi&#x105;tek. <strong style="color:#FF5724">Nie wymaga LibreOffice.</strong></div>
       </div>
 
       </div>
