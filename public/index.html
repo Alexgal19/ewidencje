@@ -11,247 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ewidencja">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-// ── Moduł Flota Masowa (wyłącznie dla o.holiadynets@swl.com.pl) ─────────────
-window.bulkItems = [];
-
-function onBulkGpsChange(input) {
-  const count = input.files ? input.files.length : 0;
-  const title = document.getElementById('bulk-gps-title');
-  const badge = document.getElementById('bulk-gps-badge');
-  if (count > 0) {
-    title.textContent = 'Wybrano ' + count + ' ' + (count === 1 ? 'plik GPS' : (count < 5 ? 'pliki GPS' : 'plików GPS'));
-    badge.textContent = '✓ ' + count + ' ' + (count === 1 ? 'plik' : 'plików');
-    badge.style.display = 'inline-block';
-  } else {
-    title.textContent = 'Wybierz pliki GPS (np. 10–50 plików)';
-    badge.style.display = 'none';
-  }
-}
-
-function onBulkFuelChange(input) {
-  const file = input.files && input.files[0];
-  const title = document.getElementById('bulk-fuel-title');
-  const badge = document.getElementById('bulk-fuel-badge');
-  if (file) {
-    title.textContent = 'Plik: ' + file.name;
-    badge.textContent = '✓ wgrany (' + (file.size < 1024*1024 ? Math.round(file.size/1024) + ' KB' : (file.size/(1024*1024)).toFixed(1) + ' MB') + ')';
-    badge.style.display = 'inline-block';
-  } else {
-    title.textContent = 'Wybierz plik z tankowaniami';
-    badge.style.display = 'none';
-  }
-}
-
-async function runBulkAnalyze() {
-  const gpsInput = document.getElementById('bulk_gps_files');
-  if (!gpsInput.files || gpsInput.files.length === 0) {
-    alert('Najpierw wybierz co najmniej jeden plik GPS!');
-    return;
-  }
-  const btn = document.getElementById('bulk_analyze_btn');
-  const st = document.getElementById('bulk_analyze_status');
-  btn.disabled = true;
-  btn.querySelector('span').textContent = 'Analizowanie plików i bazy...';
-  st.style.display = 'none';
-
-  try {
-    const fd = new FormData();
-    for (let i = 0; i < gpsInput.files.length; i++) {
-      fd.append('gps_files', gpsInput.files[i]);
-    }
-    const fuelInput = document.getElementById('bulk_fuel_file');
-    if (fuelInput.files && fuelInput.files[0]) {
-      fd.append('fuel_file', fuelInput.files[0]);
-    }
-
-    const res = await api('/api/bulk/analyze', {
-      method: 'POST',
-      body: fd
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Błąd analizy');
-
-    window.bulkItems = data.items || [];
-    renderBulkTable();
-    document.getElementById('bulk_preview_card').style.display = 'block';
-    document.getElementById('bulk_preview_card').scrollIntoView({ behavior: 'smooth' });
-
-    st.className = 'status ok';
-    st.querySelector('.si').textContent = '✓';
-    st.querySelector('div:last-child').textContent = 'Rozpoznano ' + window.bulkItems.length + ' pojazdów. ' + (data.fuelPlatesCount ? 'Dopasowano tankowania dla floty.' : 'Brak pliku tankowań (opcjonalny).');
-    st.style.display = 'flex';
-  } catch (err) {
-    st.className = 'status err';
-    st.querySelector('.si').textContent = '✗';
-    st.querySelector('div:last-child').textContent = err.message;
-    st.style.display = 'flex';
-  } finally {
-    btn.disabled = false;
-    btn.querySelector('span').textContent = 'Przeanalizuj i weryfikuj pojazdy';
-  }
-}
-
-function renderBulkTable() {
-  const tbody = document.getElementById('bulk_table_body');
-  if (!tbody) return;
-  if (!window.bulkItems || window.bulkItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Brak pojazdów do wyświetlenia.</td></tr>';
-    return;
-  }
-
-  let totalKmAll = 0;
-  let totalWithFuel = 0;
-
-  tbody.innerHTML = window.bulkItems.map((item, idx) => {
-    totalKmAll += Number(item.totalKm || 0);
-    if (item.refuelDates && item.refuelDates.length > 0) totalWithFuel++;
-
-    const odoBadge = item.hasPreviousOdo
-      ? '<span class="bulk-badge bulk-badge--green" title="Wartość pobrana z poprzedniej ewidencji tego auta">z bazy</span>'
-      : '<span class="bulk-badge bulk-badge--orange" title="Brak wcześniejszej ewidencji – wpisz ręcznie jeśli znasz licznik">nowy</span>';
-
-    const refuelText = (item.refuelDates || []).join(', ');
-    const refuelCountBadge = item.refuelDates && item.refuelDates.length > 0
-      ? '<span class="bulk-badge bulk-badge--blue" style="margin-left:4px">' + item.refuelDates.length + 'x</span>'
-      : '';
-
-    return '<tr>' +
-      '<td style="color:var(--muted);font-weight:600">' + (idx + 1) + '</td>' +
-      '<td>' +
-        '<div style="font-weight:700;letter-spacing:0.04em;font-size:0.95rem;color:var(--primary-strong)">' + escapeHtml(item.plate) + '</div>' +
-        '<div style="font-size:0.75rem;color:var(--muted)">' + escapeHtml(item.carModel || item.fileName) + '</div>' +
-      '</td>' +
-      '<td>' +
-        '<input type="text" list="driver_list" style="width:150px" value="' + escapeHtml(item.driverName || '') + '" placeholder="Imię kierowcy" onchange="window.bulkItems[' + idx + '].driverName=this.value">' +
-      '</td>' +
-      '<td>' +
-        '<div style="display:flex;align-items:center;gap:6px">' +
-          '<input type="number" style="width:110px" value="' + (item.odometerStart || 0) + '" onchange="window.bulkItems[' + idx + '].odometerStart=this.value; const to=window.bulkItems[' + idx + '].targetOdometer; window.bulkItems[' + idx + '].adjustMileage=Boolean(to && Number(to) > Number(this.value));">' +
-          odoBadge +
-        '</div>' +
-      '</td>' +
-      '<td style="font-weight:600;white-space:nowrap">' + Number(item.totalKm || 0).toFixed(1) + ' km</td>' +
-      '<td>' +
-        '<input type="number" style="width:110px" placeholder="np. ' + (Math.floor(Number(item.odometerStart||0) + Number(item.totalKm||0))) + '" value="' + (item.targetOdometer || '') + '" onchange="window.bulkItems[' + idx + '].targetOdometer=this.value; window.bulkItems[' + idx + '].adjustMileage=Boolean(this.value && Number(this.value) > Number(window.bulkItems[' + idx + '].odometerStart));">' +
-      '</td>' +
-      '<td>' +
-        '<div style="display:flex;align-items:center;gap:4px">' +
-          '<input type="text" style="width:180px;font-size:0.75rem" value="' + escapeHtml(refuelText) + '" placeholder="YYYY-MM-DD, ..." onchange="window.bulkItems[' + idx + '].refuelDates=this.value.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean)">' +
-          refuelCountBadge +
-        '</div>' +
-      '</td>' +
-      '<td style="font-size:0.75rem;color:var(--muted);white-space:nowrap">' + escapeHtml(item.outName || (item.plate + '.xlsx')) + '</td>' +
-      '<td style="text-align:center">' +
-        '<button class="btn btn--plain btn--icon" title="Usuń ten pojazd z paczki" onclick="removeBulkItem(' + idx + ')" style="color:var(--muted)"><svg class="i" style="width:14px;height:14px"><use href="#i-trash"/></svg></button>' +
-      '</td>' +
-    '</tr>';
-  }).join('');
-
-  document.getElementById('bulk_summary_sub').textContent =
-    'Łącznie: ' + window.bulkItems.length + ' pojazdów · ' + totalKmAll.toFixed(0) + ' km · ' + totalWithFuel + ' pojazdów z tankowaniami';
-}
-
-function removeBulkItem(idx) {
-  if (!window.bulkItems || !window.bulkItems[idx]) return;
-  window.bulkItems.splice(idx, 1);
-  renderBulkTable();
-}
-
-async function runBulkGenerate() {
-  if (!window.bulkItems || window.bulkItems.length === 0) {
-    alert('Brak pojazdów do wygenerowania!');
-    return;
-  }
-  const gpsInput = document.getElementById('bulk_gps_files');
-  if (!gpsInput.files || gpsInput.files.length === 0) {
-    alert('Brak plików GPS');
-    return;
-  }
-
-  const btn = document.getElementById('bulk_generate_btn');
-  const btnText = document.getElementById('bulk_generate_btn_text');
-  btn.disabled = true;
-  btnText.textContent = 'Generowanie i pakowanie do ZIP...';
-
-  try {
-    const fd = new FormData();
-    const itemsConfig = [];
-    for (let i = 0; i < window.bulkItems.length; i++) {
-      const it = window.bulkItems[i];
-      const origFile = gpsInput.files[it.fileIndex];
-      fd.append('gps_files', origFile);
-      itemsConfig.push({
-        fileIndex: i,
-        plate: it.plate,
-        carModel: it.carModel,
-        driverName: it.driverName,
-        dysponentName: document.getElementById('bulk_default_dysponent').value,
-        tripPurpose: document.getElementById('bulk_default_purpose').value,
-        odometerStart: it.odometerStart,
-        targetOdometer: it.targetOdometer,
-        adjustMileage: Boolean(it.adjustMileage),
-        refuelDates: it.refuelDates,
-        useActualDays: document.getElementById('bulk_use_actual_days').checked
-      });
-    }
-
-    fd.append('items_config', JSON.stringify(itemsConfig));
-    fd.append('default_purpose', document.getElementById('bulk_default_purpose').value);
-    fd.append('default_dysponent', document.getElementById('bulk_default_dysponent').value);
-    fd.append('use_actual_days', document.getElementById('bulk_use_actual_days').checked ? 'true' : 'false');
-
-    const res = await api('/api/bulk/generate', {
-      method: 'POST',
-      body: fd
-    });
-
-    if (!res.ok) {
-      let errText = 'Błąd serwera';
-      try {
-        const j = await res.json();
-        errText = j.error || errText;
-      } catch (e) {}
-      throw new Error(errText);
-    }
-
-    const cd = res.headers.get('content-disposition') || '';
-    let dlName = 'Ewidencje_paczka.zip';
-    const mu = cd.match(/filename\*=UTF-8''([^;]+)/i);
-    if (mu) {
-      try { dlName = decodeURIComponent(mu[1]); } catch(e) {}
-    } else {
-      const m = cd.match(/filename=("?)(.+?)\1(;|$)/);
-      if (m) dlName = m[2];
-    }
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = dlName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-
-    const genCount = res.headers.get('x-generated-count') || window.bulkItems.length;
-    const errCount = parseInt(res.headers.get('x-error-count') || '0', 10);
-    if (errCount > 0) {
-      alert('Paczka wygenerowana z uwagami:\n✔ Pomyślnie utworzono: ' + genCount + ' ewidencji\n⚠ Błędy: ' + errCount + ' plików (szczegóły w pliku _bledy_niektorych_plikow.txt wewnątrz ZIP)\n\nArchiwum ' + dlName + ' zostało pobrane.');
-    } else {
-      alert('✔ Pomyślnie wygenerowano wszystkie ' + genCount + ' ewidencji!\nArchiwum ZIP (' + dlName + ') zostało pobrane, a rekordy zapisane w Historii.');
-    }
-    loadHistory();
-  } catch (err) {
-    alert('Błąd generowania pakietowego: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btnText.textContent = 'Generuj wszystkie i pobierz ZIP';
-  }
-}
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 /* ── Fonts (sw-house.pl) ─────────────────────────────────────────────── */
@@ -1769,6 +1529,246 @@ initSupabase().catch(err=>{
   st.className='status err';st.querySelector('.si').textContent='\u2717';
   st.querySelector('div:last-child').textContent='B\u0142\u0105d inicjalizacji: '+err.message;
 });
+
+
+// ── Moduł Flota Masowa (wyłącznie dla o.holiadynets@swl.com.pl) ─────────────
+window.bulkItems = [];
+
+function onBulkGpsChange(input) {
+  const count = input.files ? input.files.length : 0;
+  const title = document.getElementById('bulk-gps-title');
+  const badge = document.getElementById('bulk-gps-badge');
+  if (count > 0) {
+    title.textContent = 'Wybrano ' + count + ' ' + (count === 1 ? 'plik GPS' : (count < 5 ? 'pliki GPS' : 'plików GPS'));
+    badge.textContent = '✓ ' + count + ' ' + (count === 1 ? 'plik' : 'plików');
+    badge.style.display = 'inline-block';
+  } else {
+    title.textContent = 'Wybierz pliki GPS (np. 10–50 plików)';
+    badge.style.display = 'none';
+  }
+}
+
+function onBulkFuelChange(input) {
+  const file = input.files && input.files[0];
+  const title = document.getElementById('bulk-fuel-title');
+  const badge = document.getElementById('bulk-fuel-badge');
+  if (file) {
+    title.textContent = 'Plik: ' + file.name;
+    badge.textContent = '✓ wgrany (' + (file.size < 1024*1024 ? Math.round(file.size/1024) + ' KB' : (file.size/(1024*1024)).toFixed(1) + ' MB') + ')';
+    badge.style.display = 'inline-block';
+  } else {
+    title.textContent = 'Wybierz plik z tankowaniami';
+    badge.style.display = 'none';
+  }
+}
+
+async function runBulkAnalyze() {
+  const gpsInput = document.getElementById('bulk_gps_files');
+  if (!gpsInput.files || gpsInput.files.length === 0) {
+    alert('Najpierw wybierz co najmniej jeden plik GPS!');
+    return;
+  }
+  const btn = document.getElementById('bulk_analyze_btn');
+  const st = document.getElementById('bulk_analyze_status');
+  btn.disabled = true;
+  btn.querySelector('span').textContent = 'Analizowanie plików i bazy...';
+  st.style.display = 'none';
+
+  try {
+    const fd = new FormData();
+    for (let i = 0; i < gpsInput.files.length; i++) {
+      fd.append('gps_files', gpsInput.files[i]);
+    }
+    const fuelInput = document.getElementById('bulk_fuel_file');
+    if (fuelInput.files && fuelInput.files[0]) {
+      fd.append('fuel_file', fuelInput.files[0]);
+    }
+
+    const res = await api('/api/bulk/analyze', {
+      method: 'POST',
+      body: fd
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Błąd analizy');
+
+    window.bulkItems = data.items || [];
+    renderBulkTable();
+    document.getElementById('bulk_preview_card').style.display = 'block';
+    document.getElementById('bulk_preview_card').scrollIntoView({ behavior: 'smooth' });
+
+    st.className = 'status ok';
+    st.querySelector('.si').textContent = '✓';
+    st.querySelector('div:last-child').textContent = 'Rozpoznano ' + window.bulkItems.length + ' pojazdów. ' + (data.fuelPlatesCount ? 'Dopasowano tankowania dla floty.' : 'Brak pliku tankowań (opcjonalny).');
+    st.style.display = 'flex';
+  } catch (err) {
+    st.className = 'status err';
+    st.querySelector('.si').textContent = '✗';
+    st.querySelector('div:last-child').textContent = err.message;
+    st.style.display = 'flex';
+  } finally {
+    btn.disabled = false;
+    btn.querySelector('span').textContent = 'Przeanalizuj i weryfikuj pojazdy';
+  }
+}
+
+function renderBulkTable() {
+  const tbody = document.getElementById('bulk_table_body');
+  if (!tbody) return;
+  if (!window.bulkItems || window.bulkItems.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Brak pojazdów do wyświetlenia.</td></tr>';
+    return;
+  }
+
+  let totalKmAll = 0;
+  let totalWithFuel = 0;
+
+  tbody.innerHTML = window.bulkItems.map((item, idx) => {
+    totalKmAll += Number(item.totalKm || 0);
+    if (item.refuelDates && item.refuelDates.length > 0) totalWithFuel++;
+
+    const odoBadge = item.hasPreviousOdo
+      ? '<span class="bulk-badge bulk-badge--green" title="Wartość pobrana z poprzedniej ewidencji tego auta">z bazy</span>'
+      : '<span class="bulk-badge bulk-badge--orange" title="Brak wcześniejszej ewidencji – wpisz ręcznie jeśli znasz licznik">nowy</span>';
+
+    const refuelText = (item.refuelDates || []).join(', ');
+    const refuelCountBadge = item.refuelDates && item.refuelDates.length > 0
+      ? '<span class="bulk-badge bulk-badge--blue" style="margin-left:4px">' + item.refuelDates.length + 'x</span>'
+      : '';
+
+    return '<tr>' +
+      '<td style="color:var(--muted);font-weight:600">' + (idx + 1) + '</td>' +
+      '<td>' +
+        '<div style="font-weight:700;letter-spacing:0.04em;font-size:0.95rem;color:var(--primary-strong)">' + escapeHtml(item.plate) + '</div>' +
+        '<div style="font-size:0.75rem;color:var(--muted)">' + escapeHtml(item.carModel || item.fileName) + '</div>' +
+      '</td>' +
+      '<td>' +
+        '<input type="text" list="driver_list" style="width:150px" value="' + escapeHtml(item.driverName || '') + '" placeholder="Imię kierowcy" onchange="window.bulkItems[' + idx + '].driverName=this.value">' +
+      '</td>' +
+      '<td>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+          '<input type="number" style="width:110px" value="' + (item.odometerStart || 0) + '" onchange="window.bulkItems[' + idx + '].odometerStart=this.value; const to=window.bulkItems[' + idx + '].targetOdometer; window.bulkItems[' + idx + '].adjustMileage=Boolean(to && Number(to) > Number(this.value));">' +
+          odoBadge +
+        '</div>' +
+      '</td>' +
+      '<td style="font-weight:600;white-space:nowrap">' + Number(item.totalKm || 0).toFixed(1) + ' km</td>' +
+      '<td>' +
+        '<input type="number" style="width:110px" placeholder="np. ' + (Math.floor(Number(item.odometerStart||0) + Number(item.totalKm||0))) + '" value="' + (item.targetOdometer || '') + '" onchange="window.bulkItems[' + idx + '].targetOdometer=this.value; window.bulkItems[' + idx + '].adjustMileage=Boolean(this.value && Number(this.value) > Number(window.bulkItems[' + idx + '].odometerStart));">' +
+      '</td>' +
+      '<td>' +
+        '<div style="display:flex;align-items:center;gap:4px">' +
+          '<input type="text" style="width:180px;font-size:0.75rem" value="' + escapeHtml(refuelText) + '" placeholder="YYYY-MM-DD, ..." onchange="window.bulkItems[' + idx + '].refuelDates=this.value.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean)">' +
+          refuelCountBadge +
+        '</div>' +
+      '</td>' +
+      '<td style="font-size:0.75rem;color:var(--muted);white-space:nowrap">' + escapeHtml(item.outName || (item.plate + '.xlsx')) + '</td>' +
+      '<td style="text-align:center">' +
+        '<button class="btn btn--plain btn--icon" title="Usuń ten pojazd z paczki" onclick="removeBulkItem(' + idx + ')" style="color:var(--muted)"><svg class="i" style="width:14px;height:14px"><use href="#i-trash"/></svg></button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById('bulk_summary_sub').textContent =
+    'Łącznie: ' + window.bulkItems.length + ' pojazdów · ' + totalKmAll.toFixed(0) + ' km · ' + totalWithFuel + ' pojazdów z tankowaniami';
+}
+
+function removeBulkItem(idx) {
+  if (!window.bulkItems || !window.bulkItems[idx]) return;
+  window.bulkItems.splice(idx, 1);
+  renderBulkTable();
+}
+
+async function runBulkGenerate() {
+  if (!window.bulkItems || window.bulkItems.length === 0) {
+    alert('Brak pojazdów do wygenerowania!');
+    return;
+  }
+  const gpsInput = document.getElementById('bulk_gps_files');
+  if (!gpsInput.files || gpsInput.files.length === 0) {
+    alert('Brak plików GPS');
+    return;
+  }
+
+  const btn = document.getElementById('bulk_generate_btn');
+  const btnText = document.getElementById('bulk_generate_btn_text');
+  btn.disabled = true;
+  btnText.textContent = 'Generowanie i pakowanie do ZIP...';
+
+  try {
+    const fd = new FormData();
+    const itemsConfig = [];
+    for (let i = 0; i < window.bulkItems.length; i++) {
+      const it = window.bulkItems[i];
+      const origFile = gpsInput.files[it.fileIndex];
+      fd.append('gps_files', origFile);
+      itemsConfig.push({
+        fileIndex: i,
+        plate: it.plate,
+        carModel: it.carModel,
+        driverName: it.driverName,
+        dysponentName: document.getElementById('bulk_default_dysponent').value,
+        tripPurpose: document.getElementById('bulk_default_purpose').value,
+        odometerStart: it.odometerStart,
+        targetOdometer: it.targetOdometer,
+        adjustMileage: Boolean(it.adjustMileage),
+        refuelDates: it.refuelDates,
+        useActualDays: document.getElementById('bulk_use_actual_days').checked
+      });
+    }
+
+    fd.append('items_config', JSON.stringify(itemsConfig));
+    fd.append('default_purpose', document.getElementById('bulk_default_purpose').value);
+    fd.append('default_dysponent', document.getElementById('bulk_default_dysponent').value);
+    fd.append('use_actual_days', document.getElementById('bulk_use_actual_days').checked ? 'true' : 'false');
+
+    const res = await api('/api/bulk/generate', {
+      method: 'POST',
+      body: fd
+    });
+
+    if (!res.ok) {
+      let errText = 'Błąd serwera';
+      try {
+        const j = await res.json();
+        errText = j.error || errText;
+      } catch (e) {}
+      throw new Error(errText);
+    }
+
+    const cd = res.headers.get('content-disposition') || '';
+    let dlName = 'Ewidencje_paczka.zip';
+    const mu = cd.match(/filename\*=UTF-8''([^;]+)/i);
+    if (mu) {
+      try { dlName = decodeURIComponent(mu[1]); } catch(e) {}
+    } else {
+      const m = cd.match(/filename=("?)(.+?)\1(;|$)/);
+      if (m) dlName = m[2];
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = dlName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+    const genCount = res.headers.get('x-generated-count') || window.bulkItems.length;
+    const errCount = parseInt(res.headers.get('x-error-count') || '0', 10);
+    if (errCount > 0) {
+      alert('Paczka wygenerowana z uwagami:\n✔ Pomyślnie utworzono: ' + genCount + ' ewidencji\n⚠ Błędy: ' + errCount + ' plików (szczegóły w pliku _bledy_niektorych_plikow.txt wewnątrz ZIP)\n\nArchiwum ' + dlName + ' zostało pobrane.');
+    } else {
+      alert('✔ Pomyślnie wygenerowano wszystkie ' + genCount + ' ewidencji!\nArchiwum ZIP (' + dlName + ') zostało pobrane, a rekordy zapisane w Historii.');
+    }
+    loadHistory();
+  } catch (err) {
+    alert('Błąd generowania pakietowego: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btnText.textContent = 'Generuj wszystkie i pobierz ZIP';
+  }
+}
 </script>
 
 <div class="modal" id="xl-modal" onclick="if(event.target===this)closePreview()">
