@@ -110,6 +110,43 @@ async function getLastEwidencjaForVehicle(userId, vehicleId) {
 
 // ── Drivers ──────────────────────────────────────────────────────────────────
 
+
+/** Look up vehicle record by plate (spaces/dashes tolerant). */
+async function findVehicleByPlate(userId, plate) {
+    if (!plate) return null;
+    const clean = String(plate).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!clean) return null;
+
+    // Fetch user's vehicles and match normalized plates
+    const vehicles = await listVehicles(userId);
+    const match = vehicles.find(v => String(v.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === clean);
+    return match || null;
+}
+
+/** Latest ewidencja row matching a registration plate, sorted primarily by period_end desc. */
+async function getLastEwidencjaForPlate(userId, plate) {
+    if (!plate) return null;
+    const clean = String(plate).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!clean) return null;
+
+    const sb = getSupabaseAdmin();
+    // Try matching exact or with wildcards
+    const { data, error } = await sb
+        .from('ewidencje')
+        .select('odometer_end, driver_name, period_end, car_model, vehicle_id, driver_id, created_at')
+        .eq('user_id', userId)
+        .order('period_end', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false });
+
+    if (error || !data) return null;
+
+    // Find first record where normalized plate matches
+    const match = data.find(row => String(row.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === clean);
+    return match || null;
+}
+
+
+
 async function listDrivers(userId) {
     const { data, error } = await getSupabaseAdmin()
         .from('drivers')
@@ -338,6 +375,8 @@ module.exports = {
     deleteVehicle,
     getVehicle,
     getLastEwidencjaForVehicle,
+    findVehicleByPlate,
+    getLastEwidencjaForPlate,
     listDrivers,
     createDriver,
     deleteDriver,

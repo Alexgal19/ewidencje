@@ -9,6 +9,7 @@ const path    = require('path');
 const { parseGps, aggregate, aggregateActual } = require('./src/gpsParser');
 const { generateExcel } = require('./src/excelGenerator');
 const apiRoutes = require('./src/apiRoutes');
+const { requireBulkAdmin, handleBulkAnalyze, handleBulkGenerate } = require('./src/bulkRoutes');
 const { requireAuth, isSupabaseConfigured, saveEwidencja, getVehicle, addPhotosToHistoryEwidencja } = require('./src/supabase');
 
 const app    = express();
@@ -44,6 +45,30 @@ app.post('/api/ewidencje/:id/photos', requireAuth, upload.array('photos', 20), a
         res.status(500).json({ error: err.message });
     }
 });
+
+
+// ── Moduł Floty Masowej (wyłącznie dla o.holiadynets@swl.com.pl) ───────────────
+const bulkUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024, files: 70 } });
+
+app.post('/api/bulk/analyze',
+    requireAuth,
+    requireBulkAdmin,
+    bulkUpload.fields([
+        { name: 'gps_files', maxCount: 60 },
+        { name: 'fuel_file', maxCount: 1 }
+    ]),
+    handleBulkAnalyze
+);
+
+app.post('/api/bulk/generate',
+    requireAuth,
+    requireBulkAdmin,
+    bulkUpload.fields([
+        { name: 'gps_files', maxCount: 60 },
+        { name: 'fuel_file', maxCount: 1 }
+    ]),
+    handleBulkGenerate
+);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
