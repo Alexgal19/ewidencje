@@ -723,7 +723,7 @@ h1{font-size:var(--fs-3xl);color:var(--white);letter-spacing:-.01em}
             </div>
           </div>
 
-          <div style="margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line-card);display:grid;grid-template-columns:1fr 1fr auto;gap:var(--sp-3);align-items:end">
+          <div style="margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--line-card);display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);align-items:end">
             <div class="field">
               <label for="bulk_default_purpose">DOMYŚLNY CEL WYJAZDU</label>
               <input type="text" id="bulk_default_purpose" value="Dojazd do klientów / sprawy służbowe" placeholder="np. Dojazd do klientów" autocomplete="off">
@@ -731,12 +731,6 @@ h1{font-size:var(--fs-3xl);color:var(--white);letter-spacing:-.01em}
             <div class="field">
               <label for="bulk_default_dysponent">DOMYŚLNY DYSPONENT</label>
               <input type="text" id="bulk_default_dysponent" placeholder="np. Smart Work Sp. z o.o." autocomplete="off">
-            </div>
-            <div class="field" style="display:flex;align-items:center;height:42px">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;color:var(--white);margin:0">
-                <input type="checkbox" id="bulk_use_actual_days" style="width:16px;height:16px;accent-color:var(--primary-strong)">
-                <span>Rzeczywiste dni GPS (bez przesuwania)</span>
-              </label>
             </div>
           </div>
 
@@ -1721,15 +1715,13 @@ async function runBulkGenerate() {
         odometerStart: it.odometerStart,
         targetOdometer: it.targetOdometer,
         adjustMileage: Boolean(it.adjustMileage),
-        refuelDates: it.refuelDates,
-        useActualDays: document.getElementById('bulk_use_actual_days').checked
+        refuelDates: it.refuelDates
       });
     }
 
     fd.append('items_config', JSON.stringify(itemsConfig));
     fd.append('default_purpose', document.getElementById('bulk_default_purpose').value);
     fd.append('default_dysponent', document.getElementById('bulk_default_dysponent').value);
-    fd.append('use_actual_days', document.getElementById('bulk_use_actual_days').checked ? 'true' : 'false');
 
     const res = await api('/api/bulk/generate', {
       method: 'POST',

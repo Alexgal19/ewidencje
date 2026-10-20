@@ -220,7 +220,6 @@ async function handleBulkGenerate(req, res) {
 
         const defaultPurpose = (req.body.default_purpose || '').trim();
         const defaultDysponent = (req.body.default_dysponent || '').trim();
-        const globalUseActual = req.body.use_actual_days === 'true';
 
         // Prepare zip filename based on first valid item's month/year
         let zipMonth = new Date().getMonth() + 1;
@@ -264,9 +263,9 @@ async function handleBulkGenerate(req, res) {
                 const odometer = parseInt(String(cfg.odometerStart || '0').replace(/[\s,]/g, ''), 10) || 0;
                 const targetOdo = parseInt(String(cfg.targetOdometer || '0').replace(/[\s,]/g, ''), 10) || 0;
                 const adjustMil = Boolean(cfg.adjustMileage && targetOdo > odometer);
-                const useActual = cfg.useActualDays != null ? Boolean(cfg.useActualDays) : globalUseActual;
 
-                let agg = useActual ? aggregateActual(dayGroups) : aggregate(dayGroups);
+                // Zgodnie z zasadami ewidencji: weekendy i święta są ZAWSZE przesuwane na poprzedni dzień roboczy (piątek)
+                let agg = aggregate(dayGroups);
 
                 // Proportional km adjustment
                 if (adjustMil && targetOdo > odometer) {
