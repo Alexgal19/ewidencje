@@ -2,7 +2,7 @@
 
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
-const { requireBulkAdmin, buildOutName, BULK_ADMIN_EMAIL } = require('../src/bulkRoutes');
+const { requireBulkAdmin, buildOutName, BULK_ADMIN_EMAIL, createZipArchive } = require('../src/bulkRoutes');
 
 describe('bulkRoutes', () => {
     const origUrl = process.env.SUPABASE_URL;
@@ -76,5 +76,27 @@ describe('bulkRoutes', () => {
         assert.strictEqual(status, 503);
         assert.ok(responseJson.error.includes('Supabase'));
         process.env.SUPABASE_URL = 'https://mock.supabase.co';
+    });
+
+    it('creates zip archive instance with append and finalize support', async () => {
+        const za = createZipArchive({ zlib: { level: 9 } });
+        assert.ok(za, 'Archive instance should be defined');
+        assert.strictEqual(typeof za.append, 'function', 'Should have append method');
+        assert.strictEqual(typeof za.finalize, 'function', 'Should have finalize method');
+        assert.strictEqual(typeof za.pipe, 'function', 'Should have pipe method');
+
+        const chunks = [];
+        const { Writable } = require('stream');
+        const out = new Writable({
+            write(chunk, enc, cb) {
+                chunks.push(chunk);
+                cb();
+            }
+        });
+        za.pipe(out);
+        za.append(Buffer.from('test content'), { name: 'test.txt' });
+        await za.finalize();
+        const total = Buffer.concat(chunks);
+        assert.ok(total.length > 0, 'Should output valid zip bytes');
     });
 });

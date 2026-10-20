@@ -19,6 +19,24 @@ const router = express.Router();
 
 const BULK_ADMIN_EMAIL = 'o.holiadynets@swl.com.pl';
 
+function createZipArchive(options = {}) {
+    if (typeof archiver === 'function') {
+        return archiver('zip', options);
+    }
+    if (archiver && archiver.ZipArchive) {
+        return new archiver.ZipArchive(options);
+    }
+    if (archiver && archiver.default) {
+        if (typeof archiver.default === 'function') {
+            return archiver.default('zip', options);
+        }
+        if (archiver.default.ZipArchive) {
+            return new archiver.default.ZipArchive(options);
+        }
+    }
+    throw new Error('Nie znaleziono obsługiwanego archiwizatora ZIP w bibliotece archiver');
+}
+
 const MONTH_NAMES_PL = [
     'styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec',
     'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'
@@ -208,7 +226,7 @@ async function handleBulkGenerate(req, res) {
         let zipMonth = new Date().getMonth() + 1;
         let zipYear = new Date().getFullYear();
 
-        const archive = archiver('zip', { zlib: { level: 9 } });
+        const archive = createZipArchive({ zlib: { level: 9 } });
 
         const errors = [];
         let generatedCount = 0;
@@ -368,4 +386,5 @@ module.exports = {
     handleBulkAnalyze,
     handleBulkGenerate,
     buildOutName,
+    createZipArchive,
 };
