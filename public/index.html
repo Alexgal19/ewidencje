@@ -871,7 +871,18 @@ h1{font-size:var(--fs-3xl);color:var(--white);letter-spacing:-.01em}
 // ── PWA ──────────────────────────────────────────────────────────────────────
 let _installPrompt=null;
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      if (reg && typeof reg.update === 'function') reg.update();
+    }).catch(() => {});
+  });
+  let _swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!_swRefreshing) {
+      _swRefreshing = true;
+      window.location.reload();
+    }
+  });
 }
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();_installPrompt=e;

@@ -24,7 +24,13 @@ function buildOutName(plate, year, month) {
     return `${mm}. ewidencja ${MONTH_NAMES_PL[month - 1]} ${year} ${plateClean}.xlsx`;
 }
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('sw.js') || filePath.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+    }
+}));
 app.use(express.json());
 
 // Healthcheck (Dockerfile HEALTHCHECK) – celowo bez autoryzacji Supabase
