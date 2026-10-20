@@ -267,5 +267,50 @@ describe('gpsParser', () => {
             assert.ok(day.firstStart.includes('Startowa'));
             assert.ok(day.lastEnd.includes('Koncowa'));
         });
+
+        // ── km in "Razem" row: strict numeric only (mirror of _km_value in app.py) ──
+        // ExcelJS sparse array index i lands in column i → parser sees it at index i-1.
+        async function oldFormatBuffer(kmValue, razemExtra = {}, headerRow = null) {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('Raport');
+            if (headerRow) ws.addRow(headerRow);
+            const rowVals = [];
+            rowVals[9]  = new Date(Date.UTC(2025, 11, 2));   // date @ parser col 8
+            rowVals[10] = 'Startowa 1, 00-001 Warszawa';      // start addr @ col 9
+            rowVals[13] = 'Koncowa 2, 00-001 Warszawa';       // end addr @ col 12
+            ws.addRow(rowVals);
+            const razemVals = [];
+            razemVals[1]  = 'Razem';
+            razemVals[17] = kmValue;                          // km @ col 16
+            for (const [k, v] of Object.entries(razemExtra)) razemVals[k] = v;
+            ws.addRow(razemVals);
+            return wb.xlsx.writeBuffer();
+        }
+
+        it('does not read parking time ("54:30:49") from the km cell', async () => {
+            const result = await parseGps(await oldFormatBuffer('54:30:49'), 't.xlsx');
+            assert.strictEqual(result.dayGroups.length, 1);
+            assert.strictEqual(result.dayGroups[0].km, 0);
+        });
+
+        it('does not read comma-decimal text ("12,5") from the km cell', async () => {
+            const result = await parseGps(await oldFormatBuffer('12,5'), 't.xlsx');
+            assert.strictEqual(result.dayGroups[0].km, 0);
+        });
+
+        it('reads a numeric km cell', async () => {
+            const result = await parseGps(await oldFormatBuffer(12.5), 't.xlsx');
+            assert.strictEqual(result.dayGroups[0].km, 12.5);
+        });
+
+        it('prefers the "Dystans" header column over the default km column', async () => {
+            const hdr = [];
+            hdr[16] = 'Dystans'; // header @ parser col 15
+            const result = await parseGps(
+                await oldFormatBuffer('54:30:49', { 16: 33.3 }, hdr),
+                't.xlsx'
+            );
+            assert.strictEqual(result.dayGroups[0].km, 33.3);
+        });
     });
 });

@@ -53,7 +53,7 @@ JAK UŻYWAĆ
 
 WYGENEROWANY PLIK EXCEL
 ────────────────────────
-Plik:  ewidencja_DSW3318E_2025_12.xlsx  (nazwa auta + miesiąc)
+Plik:  07. ewidencja lipiec 2026 DSW3318E.xlsx  (nr miesiąca + miesiąc + rok + nr rej.)
 
 Arkusz 1 – Tytułowa:
   • Dane firmy Smart Work Sp. z o.o.

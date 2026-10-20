@@ -10,6 +10,7 @@ dist/
 .env
 firebase-debug.log
 DSW*.xls
+DSW*.xlsx
 known_cities.json
 result.txt
 routes_utf8.txt

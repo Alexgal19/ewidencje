@@ -10,7 +10,8 @@ Aplikacja webowa + desktopowa do generowania miesięcznej ewidencji przebiegu po
 |---------|-------------|
 | Backend (parser + generator Excel) | Python 3.8+, Flask, openpyxl |
 | Serwer HTTP / API | Node.js, Express, Multer |
-| Frontend | Statyczny HTML/CSS/JS inline w `server.js` |
+| Auth / baza / Storage | Supabase (JWT, Postgres, pliki) — `src/supabase.js`, `src/apiRoutes.js` |
+| Frontend | PWA w folderze `public/` (HTML/CSS/JS + service worker) |
 | Parser GPS | `src/gpsParser.js`, `src/xlsParser.js` |
 | Generator Excel (Node) | `src/excelGenerator.js` |
 | Build .exe | PyInstaller (`GeneratorEwidencji.spec`) |
@@ -19,7 +20,9 @@ Aplikacja webowa + desktopowa do generowania miesięcznej ewidencji przebiegu po
 ## Kluczowe pliki
 
 - `app.py` — Flask backend z **wbudowanym czytnikiem XLS (OLE/BIFF8)**. Nie wymaga LibreOffice ani xlrd. Zawiera tez generator openpyxl.
-- `server.js` — Express serwujacy statyczny frontend (folder `public/`) i endpointy API. Zawiera inline caly HTML strony glownej.
+- `server.js` — Express serwujacy statyczny frontend (folder `public/`) i endpointy API (`/generate`, `/api/*`).
+- `src/supabase.js` — klient Supabase (auth, pojazdy, kierowcy, historia, Storage).
+- `src/apiRoutes.js` — REST API pod `/api` (wymaga `Authorization: Bearer`).
 - `src/gpsParser.js` — logika parsowania tras GPS, agregacja km per dzien, laczenie sobot/niedziel z piatkiem.
 - `src/xlsParser.js` — parser binarnych plikow `.xls`.
 - `src/excelGenerator.js` — generator pliku Excel (ExcelJS) z arkuszami tytulowym i rozliczeniowym.
@@ -41,33 +44,33 @@ Obecnie sa dwa backendy rownolegle:
 3. **Stan licznika koncowy** = poczatkowy + suma wszystkich km.
 4. **Tankowanie** — uzytkownik podaje daty (np. `5.12, 12.12`); w kolumnie "Uwagi" wpisywane jest slowo "tankowanie".
 5. **Adresy** — ciaglość: nowy dzien zaczyna sie od adresu docelowego poprzedniego dnia.
-6. **Format wyjsciowy** — nazwa pliku: `MM. ewidencja <miesiac> <ostatni dzien miesiaca DD.MM.RRRR> <NR_REJ>.xlsx`, np. `07. ewidencja lipiec 31.07.2026 DSW3318E.xlsx` (`src/outputName.js` / `build_output_name` w `app.py` — trzymac zsynchronizowane).
+6. **Format wyjsciowy** — nazwa pliku: `MM. ewidencja <miesiac> <rok> <NR_REJ>.xlsx`, np. `07. ewidencja lipiec 2026 DSW3318E.xlsx` (`buildOutName` w `server.js` / `build_output_name` w `app.py` — trzymac zsynchronizowane).
 
 ## Endpointy API (server.js)
 
 | Metoda | Path | Opis |
 |--------|------|------|
 | GET | `/` | Strona glowna (HTML inline) |
-| POST | `/generate` | Upload pliku GPS (`gps_file`) + pola formularza → zwraca Excel. Rate limit (domyslnie 20/min/IP), maks. 10 MB. Ostrzezenia (np. brak stanu licznika) w naglowku `X-Warnings` (URL-encoded) |
-| GET | `/health`, `/api/health` | Healthcheck |
+| POST | `/generate` | Upload pliku GPS (`gps_file`) + zdjecia (`photos`) + pola formularza → zwraca Excel. Wymaga autoryzacji Supabase (`Authorization: Bearer`), maks. 50 MB |
+| GET | `/health`, `/api/health` | Healthcheck (bez autoryzacji) |
 
 Nazwa pliku wynikowego: patrz zasada #6.
 Bledy odczytu pliku → HTTP 400; odpowiedzi 500 nie zawieraja stack trace (tylko w logu serwera).
 
-Pola formularza `/generate`: `driver_name`, `trip_purpose` (maks. 200 znakow), `odometer_start`, `target_odometer`, `adjust_mileage`, `use_actual_days`, `refuel_dates` (maks. 500 znakow; niepoprawne daty sa pomijane z ostrzezeniem).
+Pola formularza `/generate`: `driver_name`, `dysponent_name`, `trip_purpose`, `odometer_start`, `target_odometer`, `adjust_mileage`, `use_actual_days`, `refuel_dates` (niepoprawne daty sa pomijane), `vehicle_id`, `driver_id`.
 
 ## Zmienne srodowiskowe
 
 | Zmienna | Domyslnie | Opis |
 |---------|-----------|------|
 | `PORT` | 8080 | Port serwera |
-| `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | 20 / 60000 | Limit zadan `/generate` na IP |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` | — | Konfiguracja Supabase (bez nich `/api` i `/generate` zwracaja 503) |
 | `KNOWN_CITIES_FILE` | `./known_cities.json` (w Dockerze `/tmp/...`) | Plik cache kodow pocztowych → miasto |
 | `NOMINATIM_CONTACT` / `NOMINATIM_USER_AGENT` | adres repo | Kontakt w User-Agent (wymog polityki Nominatim) — ustaw prawdziwy e-mail |
 
 ## Testy
 
-`npm test` (`node --test`): `test/gpsParser.test.js`, `test/excelGenerator.test.js` (generator + bledy xlsParser), `test/server.test.js` (integracyjne API), `test/rateLimit.test.js`. Brak fixture binarnego `.xls` — pelny odczyt BIFF8 nie jest pokryty testami.
+`npm test` (`node --test`): `test/gpsParser.test.js` (parsowanie, detekcja formatu i kolumny km), `test/district.test.js` (osiedla/dzielnice), `test/excelGenerator.test.js` (generator + bledy xlsParser). Brak fixture binarnego `.xls` — pelny odczyt BIFF8 nie jest pokryty testami. Python (`app.py`) nie ma wlasnych testow — po zmianach sprawdzac recznie.
 
 > Uwaga: na dni robocze bez jazdy generator wpisuje jawne `0` w kolumnie km (dni wolne zostaja puste) — to zachowanie kodu, niezgodne z regula #2 powyzej; do uzgodnienia z uzytkownikiem.
 
@@ -98,14 +101,18 @@ npm run docker:up   # port 8080
 
 ## Auto-detekcja formatu pliku GPS
 
-Parser sam wykrywa, czy plik jest w starym formacie XLS czy nowym XLSX:
+Parser sam wykrywa, czy plik jest w starym formacie XLS czy nowym XLSX — **w obu backendach** (`gpsParser.js` i `parse_gps` w `app.py` — trzymac zsynchronizowane):
 
 | Format | date | startAddr | endAddr | km (w wierszu "Razem") |
 |--------|------|-----------|---------|------------------------|
 | Stary XLS | col 8 | col 9 | col 12 | col 16 |
 | Nowy XLSX | col 10 | col 12 | col 17 | col 23 |
 
-Detekcja odbywa sie przez znalezienie pierwszego wiersza z obiektem `Date` w kolumnie 10. Jesli nowy tracker zmieni uklad kolumn — trzeba recznie zaktualizowac mapowanie w `gpsParser.js` (linie ~370-382).
+- Detekcja formatu: pierwszy wiersz z data w kolumnie 10 → nowy format.
+- Kolumna km: naglowek "Dystans" (pierwsze 30 wierszy) nadpisuje domyslne mapowanie.
+- Wartosc km: tylko scisle liczbowa — czas postoju ("54:30:49") ani tekst z przecinkiem dziesietnym ("12,5") NIE sa czytane jako km (testy w `test/gpsParser.test.js`).
+
+Jesli nowy tracker zmieni uklad kolumn — zaktualizowac mapowanie w `gpsParser.js` ORAZ `app.py` (`parse_gps`).
 
 ## Wbudowany czytnik XLS (OLE/BIFF8)
 

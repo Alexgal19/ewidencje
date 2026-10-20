@@ -26,6 +26,9 @@ function buildOutName(plate, year, month) {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
+// Healthcheck (Dockerfile HEALTHCHECK) – celowo bez autoryzacji Supabase
+app.get(['/health', '/api/health'], (req, res) => res.json({ ok: true }));
+
 // ── API (Supabase: auth, pojazdy, kierowcy, historia) ────────────────────────
 app.use('/api', apiRoutes);
 

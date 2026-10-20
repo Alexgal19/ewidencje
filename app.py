@@ -493,6 +493,23 @@ def extract_city(addr):
 
 
 
+def _cell(row, i):
+    """Bezpieczny dostęp do kolumny – wiersze z .xls/.xlsx mogą być krótsze."""
+    return row[i] if len(row) > i else None
+
+
+def _km_value(val):
+    """Ściśle liczbowa wartość km (mirror gpsParser.js) – czas postoju
+    ('54:30:49') ani dziesiętne z przecinkiem ('12,5') nie są kilometrami."""
+    if val is None or isinstance(val, (bool, datetime.datetime, datetime.date, datetime.time)):
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str) and re.fullmatch(r'\d+(\.\d+)?', val.strip()):
+        return float(val.strip())
+    return None
+
+
 def parse_gps(file_bytes, filename):
     ext = os.path.splitext(filename)[1].lower()
 
@@ -509,66 +526,94 @@ def parse_gps(file_bytes, filename):
 
     plate = car_model = date_from = date_to = None
 
-    for i, row in enumerate(rows[:20]):
-        if not row: continue
-        v = str(row[0]) if row[0] else ''
-        if 'Data:' in v:
-            m = re.search(r'(\d{4}-\d{2}-\d{2}).*?(\d{4}-\d{2}-\d{2})', v)
-            if m:
-                date_from = datetime.date.fromisoformat(m.group(1))
-                date_to   = datetime.date.fromisoformat(m.group(2))
-        if i == 12:
-            car_model = str(row[0]).strip() if row[0] else ''
-            plate     = str(row[2]).strip() if len(row) > 2 and row[2] else ''
+    # ── Auto-detekcja układu kolumn (mirror src/gpsParser.js) ─────────────────
+    # Stary XLS: date@8, start@9, end@12, km@16 | Nowy XLSX: date@10, start@12, end@17, km@23
+    date_col, start_addr_col, end_addr_col, km_cols = 8, 9, 12, [16]
+    if any(isinstance(_cell(r, 10), (datetime.datetime, datetime.date)) for r in rows if r):
+        date_col, start_addr_col, end_addr_col, km_cols = 10, 12, 17, [23]
+
+    # Prawdziwa pozycja nagłówka "Dystans" wybija założony układ kolumn
+    for r in rows[:30]:
+        if not r:
+            continue
+        for ci, c in enumerate(r):
+            if isinstance(c, str) and c.strip().lower() == 'dystans':
+                km_cols = [ci]
+                break
+        else:
+            continue
+        break
+
+    summary_re = re.compile(r'^(razem|suma|podsumowanie):?$', re.IGNORECASE)
+
+    # ── Skan wierszy nagłówkowych po metadane ────────────────────────────────
+    for i, row in enumerate(rows[:30]):
+        if not row:
+            continue
+        for cell in row:
+            if cell is None:
+                continue
+            v = str(cell)
+            if not date_from and 'Data:' in v:
+                m = re.search(r'(\d{4}-\d{2}-\d{2}).*?(\d{4}-\d{2}-\d{2})', v)
+                if m:
+                    date_from = datetime.date.fromisoformat(m.group(1))
+                    date_to   = datetime.date.fromisoformat(m.group(2))
+            if not date_from:
+                m = re.search(r'(\d{2})\.(\d{2})\.(\d{4}).*?(\d{2})\.(\d{2})\.(\d{4})', v)
+                if m:
+                    date_from = datetime.date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+                    date_to   = datetime.date(int(m.group(6)), int(m.group(5)), int(m.group(4)))
+        if i == 12 and date_col == 8:
+            car_model = str(row[0]).strip() if row[0] is not None else ''
+            plate     = str(row[2]).strip() if len(row) > 2 and row[2] is not None else ''
 
     day_groups, current = [], []
 
     for row in rows:
-        if not row or len(row) < 17:
-            current.append(row); continue
-        first = str(row[0]).strip() if row[0] else ''
-        if first == 'Razem:':
-            if current:
-                data = [r for r in current
-                        if len(r) > 12 and isinstance(r[8], datetime.datetime)]
-                if data:
-                    if not plate:
-                        plate = str(data[0][0]).strip()
-                    date = data[0][8].date()
-                    km = 0.0
-                    # Skip time strings/datetimes (e.g. parking time "54:30:49") - only real numbers are km
-                    for c in (16, 15, 17, 14, 18):
-                        if c >= len(row):
-                            continue
-                        val = row[c]
-                        if val is None or val == '' or isinstance(val, bool):
-                            continue
-                        if isinstance(val, (datetime.datetime, datetime.date, datetime.time)):
-                            continue
-                        if isinstance(val, str):
-                            if ':' in val:
-                                continue
-                            try:
-                                val = float(val.replace(',', '.'))
-                            except ValueError:
-                                continue
-                        km = float(val)
-                        break
-                    addresses = []
-                    for r in data:
-                        s, e = r[9], r[12]
-                        if s: addresses.append(str(s))
-                        if e: addresses.append(str(e))
-                        
-                    first_start = data[0][9] if data[0][9] else ''
-                    last_end = data[-1][12] if data[-1][12] else ''
-
-                    day_groups.append(dict(date=date, km=km,
-                                          addresses=addresses,
-                                          first_start=first_start, last_end=last_end))
-            current = []
-        else:
+        if not row:
+            continue
+        col0 = '' if row[0] is None else str(row[0]).strip()
+        col1 = '' if _cell(row, 1) is None else str(row[1]).strip()
+        if not (summary_re.match(col0) or summary_re.match(col1)):
             current.append(row)
+            continue
+        if current:
+            data = [r for r in current
+                    if isinstance(_cell(r, date_col), (datetime.datetime, datetime.date))]
+            if data:
+                if not plate:
+                    plate = '' if data[0][0] is None else str(data[0][0]).strip()
+                d = data[0][date_col]
+                date = d.date() if isinstance(d, datetime.datetime) else d
+
+                # Tylko ściśle liczbowe wartości z kolumny km (mirror gpsParser.js)
+                km = 0.0
+                for c in km_cols:
+                    v = _km_value(_cell(row, c))
+                    if v is not None:
+                        km = v
+                        break
+
+                addresses = []
+                for r in data:
+                    s, e = _cell(r, start_addr_col), _cell(r, end_addr_col)
+                    if s is not None and str(s).strip():
+                        addresses.append(str(s))
+                    if e is not None and str(e).strip():
+                        addresses.append(str(e))
+
+                fs = _cell(data[0], start_addr_col)
+                le = _cell(data[-1], end_addr_col)
+                day_groups.append(dict(date=date, km=km, addresses=addresses,
+                                       first_start='' if fs is None else str(fs),
+                                       last_end='' if le is None else str(le)))
+        current = []
+
+    # Brak zakresu dat w nagłówku → wywnioskuj z dat tras (mirror gpsParser.js)
+    if not date_from and day_groups:
+        srt = sorted(day_groups, key=lambda g: g['date'])
+        date_from, date_to = srt[0]['date'], srt[-1]['date']
 
     return plate, car_model, date_from, date_to, day_groups
 
@@ -771,22 +816,13 @@ PL_MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec',
 DARK, ACCENT, GRAY = '1F2937', '10B981', '6B7280'
 
 
-def build_output_name(plate, date_from, fallback_base='ewidęcja'):
-    """Np. '07. ewidęcja lipiec 31.07.2026 DSW3318E.xlsx'
-    = <nr miesiąca>. ewidęcja <miesiąc> <ostatni dzień miesiąca DD.MM.RRRR> <nr rej>.
-    Mirror of src/outputName.js (Node backend) – keep both in sync."""
+def build_output_name(plate, date_from):
+    """Np. '07. ewidencja lipiec 2026 DSW3318E.xlsx'
+    = <nr miesiąca>. ewidencja <miesiąc> <rok> <nr rej>.
+    Mirror of buildOutName (server.js) – keep both in sync."""
     ref = date_from if date_from else datetime.date.today()
-    last_day = calendar.monthrange(ref.year, ref.month)[1]
-
-    def clean(s):
-        s = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', str(s or ''))
-        return re.sub(r'\s+', ' ', s).strip()
-
-    tail = clean(plate) or clean(fallback_base)
-    name = f"{ref.month:02d}. ewidęcja {PL_MONTHS[ref.month - 1]} {last_day:02d}.{ref.month:02d}.{ref.year}"
-    if tail:
-        name += f" {tail}"
-    return name + '.xlsx'
+    plate_clean = re.sub(r'[^A-Za-z0-9]', '', str(plate or 'auto'))
+    return f"{ref.month:02d}. ewidencja {PL_MONTHS[ref.month - 1]} {ref.year} {plate_clean}.xlsx"
 
 
 def bdr(top='thin', right='thin', bottom='thin', left='thin'):
@@ -1424,7 +1460,7 @@ async function generate(){
     if(!resp.ok){const data=await resp.json().catch(()=>({}));throw new Error(data.error||'Błąd serwera ('+resp.status+')')}
     const blob=await resp.blob();
     const cd=resp.headers.get('Content-Disposition')||'';
-    let name='ewidęcja.xlsx';const mu=cd.match(/filename\*=UTF-8''([^;]+)/i);if(mu){try{name=decodeURIComponent(mu[1])}catch(e){}}else{const m=cd.match(/filename=("?)(.+?)\1(;|$)/);if(m)name=m[2]}
+    let name='ewidencja.xlsx';const mu=cd.match(/filename\*=UTF-8''([^;]+)/i);if(mu){try{name=decodeURIComponent(mu[1])}catch(e){}}else{const m=cd.match(/filename=("?)(.+?)\1(;|$)/);if(m)name=m[2]}
     const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     showStatus('ok','✓','Plik "'+name+'" pobrany!');
   }catch(err){stopProgress();showStatus('err','✗','Błąd: '+err.message)}
@@ -1519,9 +1555,8 @@ def generate():
                              driver, dysponent, odometer, refuel_set, agg,
                              trip_purpose=trip_purpose)
 
-        # Nazwa pliku: "MM. ewidęcja <miesiac> <ostatni dzien DD.MM.RRRR> <nr rej>.xlsx"
-        fn_base = os.path.splitext(gps_file.filename)[0] if gps_file.filename else 'ewidęcja'
-        filename = build_output_name(plate, date_from, fn_base)
+        # Nazwa pliku: "MM. ewidencja <miesiac> <rok> <nr rej>.xlsx"
+        filename = build_output_name(plate, date_from)
         
         resp = send_file(buf, as_attachment=True,
                          download_name=filename,
