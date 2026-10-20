@@ -114,10 +114,10 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
 
     const tytCols = [
         { key: 'A', width: 4 },
-        { key: 'B', width: 20 },
-        { key: 'C', width: 30 },
-        { key: 'D', width: 30 },
-        { key: 'E', width: 30 },
+        { key: 'B', width: 22 },
+        { key: 'C', width: 28 },
+        { key: 'D', width: 28 },
+        { key: 'E', width: 34 },
         { key: 'F', width: 4 },
     ];
     for (const { key, width } of tytCols) {
@@ -188,7 +188,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
             col === 'B' ? 'medium' : undefined
         );
     }
-    ws.getRow(15).height = 20;
+    ws.getRow(15).height = 22;
 
     ws.mergeCells('C16:E16');
     const c16 = ws.getCell('C16');
@@ -203,7 +203,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
             undefined
         );
     }
-    ws.getRow(16).height = 30;
+    ws.getRow(16).height = 38;
 
     const b16 = ws.getCell('B16');
     b16.value     = 'DATA';
@@ -217,7 +217,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     b17.font      = font('Arial', 14, { bold: true, color: '000000' });
     b17.alignment = align('center', 'middle');
     b17.border    = thickBdr(undefined, 'thin', 'medium', 'medium');
-    ws.getRow(17).height = 25;
+    ws.getRow(17).height = 30;
 
     ws.mergeCells('C17:E17');
     const c17 = ws.getCell('C17');
@@ -250,7 +250,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
             col === 'B' ? 'medium' : undefined
         );
     }
-    ws.getRow(19).height = 20;
+    ws.getRow(19).height = 22;
 
     ws.mergeCells('C20:D20');
     const c20cd = ws.getCell('C20');
@@ -259,7 +259,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     c20cd.alignment = align('center', 'middle', { wrap: true });
     ws.getCell('C20').border = thickBdr(undefined, undefined, 'thin', undefined);
     ws.getCell('D20').border = thickBdr(undefined, 'thin', 'thin', undefined);
-    ws.getRow(20).height = 30;
+    ws.getRow(20).height = 44;
 
     const e20 = ws.getCell('E20');
     e20.value     = 'LICZBA PRZEJECHANYCH KILOMETRÓW\nna dzień zakończenia prowadzenia ewidencji';
@@ -279,7 +279,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     b21.font      = font('Arial', 14, { bold: true, color: '000000' });
     b21.alignment = align('center', 'middle');
     b21.border    = thickBdr(undefined, 'thin', 'medium', 'medium');
-    ws.getRow(21).height = 25;
+    ws.getRow(21).height = 30;
 
     ws.mergeCells('C21:D21');
     const c21 = ws.getCell('C21');
@@ -318,14 +318,14 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     ws2.views = [{ state: 'frozen', xSplit: 0, ySplit: 6, showGridLines: false }];
 
     const rozCols = [
-        { key: 'A', width: 5 },
-        { key: 'B', width: 5 },
-        { key: 'C', width: 13 },
-        { key: 'D', width: 24 },
-        { key: 'E', width: 42 },
-        { key: 'F', width: 12 },
-        { key: 'G', width: 24 },
-        { key: 'H', width: 20 },
+        { key: 'A', width: 6 },
+        { key: 'B', width: 6 },
+        { key: 'C', width: 14 },
+        { key: 'D', width: 38 },
+        { key: 'E', width: 55 },
+        { key: 'F', width: 14 },
+        { key: 'G', width: 26 },
+        { key: 'H', width: 16 },
     ];
     for (const { key, width } of rozCols) {
         ws2.getColumn(key).width = width;
@@ -455,7 +455,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
                 c.alignment = align('center', 'middle');
             } else if (ci === 4) {
                 c.font      = font('Arial', 9, { color: fntCol });
-                c.alignment = align('center', 'middle');
+                c.alignment = align('center', 'middle', { wrap: true });
             } else if (ci === 5) {
                 c.font      = font('Arial', 9, { color: '000000' });
                 c.alignment = align('center', 'middle', { wrap: true });
@@ -474,7 +474,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
                 } else {
                     c.font = font('Arial', 9, { color: fntCol });
                 }
-                c.alignment = align('center', 'middle');
+                c.alignment = align('center', 'middle', { wrap: true });
             } else if (ci === 8) {
                 if (uwagi) {
                     c.font = font('Arial', 8, { bold: true, color: 'B45309' });
@@ -482,8 +482,28 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
                 } else {
                     c.font = font('Arial', 8, { color: fntCol });
                 }
-                c.alignment = align('center', 'middle', { indent: 1 });
+                c.alignment = align('center', 'middle', { indent: 0 });
             }
+        }
+
+        // Dynamiczna wysokość wiersza dopasowana do treści trasy
+        if (isFree && !km) {
+            ws2.getRow(row).height = 18;
+        } else if (route) {
+            const estLines = Math.ceil(route.length / 50);
+            const explicitLines = route.split('\n').length;
+            const linesCount = Math.max(estLines, explicitLines, 1);
+            if (linesCount === 1) {
+                ws2.getRow(row).height = 20;
+            } else if (linesCount === 2) {
+                ws2.getRow(row).height = 32;
+            } else if (linesCount === 3) {
+                ws2.getRow(row).height = 44;
+            } else {
+                ws2.getRow(row).height = Math.min(linesCount * 14 + 6, 75);
+            }
+        } else {
+            ws2.getRow(row).height = 20;
         }
     }
 
@@ -531,29 +551,46 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     gSig1.font      = font('Arial', 8, { italic: true, color: '6B7280' });
     gSig1.alignment = align('center', 'top');
 
-    // Auto-adjust column widths
+    // Auto-adjust column widths with sensible minimums and content fitting
     for (let colIdx = 1; colIdx <= 8; colIdx++) {
         const colLet = colLetter(colIdx);
         let maxLength = 0;
         const wsCol = ws2.getColumn(colIdx);
         wsCol.eachCell({ includeEmpty: false }, (cell) => {
-            if (cell.row < 5 || cell.row >= sr) return;
+            if (cell.row < 6 || cell.row > sr) return;
             if (!cell.value) return;
+            if (cell.value instanceof Date) return;
             const lines = String(cell.value).split('\n');
             for (const line of lines) {
                 if (line.length > maxLength) maxLength = line.length;
             }
         });
-        if (maxLength > 0) {
-            let adjWidth;
-            if (colLet === 'A' || colLet === 'B') {
-                adjWidth = Math.max(5, Math.min(maxLength + 2, 8));
-            } else if (colLet === 'E') {
-                adjWidth = Math.min(maxLength + 2, 48);
-            } else {
-                adjWidth = Math.min(maxLength + 2, 25);
-            }
-            ws2.getColumn(colIdx).width = adjWidth;
+
+        let targetWidth;
+        if (colLet === 'A') {
+            targetWidth = Math.max(6, maxLength + 2);
+        } else if (colLet === 'B') {
+            targetWidth = Math.max(6, maxLength + 2);
+        } else if (colLet === 'C') {
+            targetWidth = 14;
+        } else if (colLet === 'D') {
+            // Cel wyjazdu – pełna treść bez obcinania (min. 38)
+            targetWidth = Math.max(38, Math.min(maxLength + 3, 52));
+        } else if (colLet === 'E') {
+            // Opis trasy wyjazdu – szeroka kolumna z zawijaniem
+            targetWidth = Math.max(55, Math.min(maxLength + 2, 65));
+        } else if (colLet === 'F') {
+            // Liczba kilometrów
+            targetWidth = 14;
+        } else if (colLet === 'G') {
+            // Imię i nazwisko kierowcy
+            targetWidth = Math.max(26, Math.min(maxLength + 3, 35));
+        } else if (colLet === 'H') {
+            // Uwagi (np. tankowanie)
+            targetWidth = Math.max(16, Math.min(maxLength + 3, 22));
+        }
+        if (targetWidth) {
+            ws2.getColumn(colIdx).width = targetWidth;
         }
     }
 
