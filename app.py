@@ -282,6 +282,8 @@ _STREET_PREFIX_RE = re.compile(
     re.IGNORECASE
 )
 
+_DISTRICT_RE = re.compile(r'^\s*(osiedle|os\.|dzielnica)\s+', re.IGNORECASE)
+
 def _looks_like_street(text):
     """
     Returns True when the text segment looks like a real street address
@@ -415,11 +417,18 @@ def _parse_gps_addr(addr):
     # Regex for a pure zip code part like "43-245"
     zip_re = re.compile(r'^\d{2}-\d{3}$')
 
-    street_raw = parts[0]
+    # District / housing-estate names ("osiedle Powstańców Śląskich") are not cities and must
+    # not be written directly - drop them so the route refers to the real city instead.
+    district_first = False
+    if len(parts) >= 2 and any(_DISTRICT_RE.match(p) for p in parts):
+        district_first = bool(_DISTRICT_RE.match(parts[0]))
+        parts = [p for p in parts if not _DISTRICT_RE.match(p)]
+
+    street_raw = '' if district_first else parts[0]
     street_clean = _remove_digits_from_name(street_raw)
 
     # Collect non-street parts
-    rest = parts[1:]
+    rest = parts if district_first else parts[1:]
     zip_code = ''
     city_name = ''
 
@@ -526,7 +535,25 @@ def parse_gps(file_bytes, filename):
                     if not plate:
                         plate = str(data[0][0]).strip()
                     date = data[0][8].date()
-                    km   = float(row[16]) if isinstance(row[16], (int, float)) else 0.0
+                    km = 0.0
+                    # Skip time strings/datetimes (e.g. parking time "54:30:49") - only real numbers are km
+                    for c in (16, 15, 17, 14, 18):
+                        if c >= len(row):
+                            continue
+                        val = row[c]
+                        if val is None or val == '' or isinstance(val, bool):
+                            continue
+                        if isinstance(val, (datetime.datetime, datetime.date, datetime.time)):
+                            continue
+                        if isinstance(val, str):
+                            if ':' in val:
+                                continue
+                            try:
+                                val = float(val.replace(',', '.'))
+                            except ValueError:
+                                continue
+                        km = float(val)
+                        break
                     addresses = []
                     for r in data:
                         s, e = r[9], r[12]
@@ -739,7 +766,27 @@ def build_route(addresses, last_known_city=""):
 # ══════════════════════════════════════════════════════════════════════════════
 
 PL_DAYS = {0:'pon',1:'wt',2:'śr',3:'czw',4:'pt',5:'sob',6:'niedz'}
+PL_MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec',
+             'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień']
 DARK, ACCENT, GRAY = '1F2937', '10B981', '6B7280'
+
+
+def build_output_name(plate, date_from, fallback_base='ewidęcja'):
+    """Np. '07. ewidęcja lipiec 31.07.2026 DSW3318E.xlsx'
+    = <nr miesiąca>. ewidęcja <miesiąc> <ostatni dzień miesiąca DD.MM.RRRR> <nr rej>.
+    Mirror of src/outputName.js (Node backend) – keep both in sync."""
+    ref = date_from if date_from else datetime.date.today()
+    last_day = calendar.monthrange(ref.year, ref.month)[1]
+
+    def clean(s):
+        s = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', str(s or ''))
+        return re.sub(r'\s+', ' ', s).strip()
+
+    tail = clean(plate) or clean(fallback_base)
+    name = f"{ref.month:02d}. ewidęcja {PL_MONTHS[ref.month - 1]} {last_day:02d}.{ref.month:02d}.{ref.year}"
+    if tail:
+        name += f" {tail}"
+    return name + '.xlsx'
 
 
 def bdr(top='thin', right='thin', bottom='thin', left='thin'):
@@ -1377,8 +1424,7 @@ async function generate(){
     if(!resp.ok){const data=await resp.json().catch(()=>({}));throw new Error(data.error||'Błąd serwera ('+resp.status+')')}
     const blob=await resp.blob();
     const cd=resp.headers.get('Content-Disposition')||'';
-    const m=cd.match(/filename[^=\n]*=(["']?)(.+?)\1/);
-    const name=m?m[2]:'ewidencja.xlsx';
+    let name='ewidęcja.xlsx';const mu=cd.match(/filename\*=UTF-8''([^;]+)/i);if(mu){try{name=decodeURIComponent(mu[1])}catch(e){}}else{const m=cd.match(/filename=("?)(.+?)\1(;|$)/);if(m)name=m[2]}
     const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     showStatus('ok','✓','Plik "'+name+'" pobrany!');
   }catch(err){stopProgress();showStatus('err','✗','Błąd: '+err.message)}
@@ -1473,13 +1519,9 @@ def generate():
                              driver, dysponent, odometer, refuel_set, agg,
                              trip_purpose=trip_purpose)
 
-        # Odtworzenie nazwy z przesłanego pliku i wymuszenie .xlsx
-        original_filename = gps_file.filename
-        if original_filename:
-            base_name = os.path.splitext(original_filename)[0]
-            filename = f"{base_name}.xlsx"
-        else:
-            filename = 'ewidencja.xlsx'
+        # Nazwa pliku: "MM. ewidęcja <miesiac> <ostatni dzien DD.MM.RRRR> <nr rej>.xlsx"
+        fn_base = os.path.splitext(gps_file.filename)[0] if gps_file.filename else 'ewidęcja'
+        filename = build_output_name(plate, date_from, fn_base)
         
         resp = send_file(buf, as_attachment=True,
                          download_name=filename,

@@ -2,7 +2,7 @@
 
 const fs   = require('fs');
 const path = require('path');
-const http = require('https');
+const https = require('https');
 const ExcelJS = require('exceljs');
 const { xlsReadRows } = require('./xlsParser');
 
@@ -112,9 +112,13 @@ function getPolishHolidays(year) {
  * If going backwards crosses into previous month, go forward instead.
  */
 function getPreviousWorkingDay(isoStr) {
+    // A run of consecutive non-working days (weekend + holidays) is never longer than ~10 days;
+    // the guard turns a pathological infinite loop into a descriptive error.
+    const MAX_STEPS = 60;
     let current = isoStr;
 
-    while (true) {
+    for (let i = 0; ; i++) {
+        if (i > MAX_STEPS) throw new Error(`getPreviousWorkingDay: no working day found near ${isoStr}`);
         const year = parseInt(current.slice(0, 4), 10);
         const holidays = getPolishHolidays(year);
         const wd = weekdayOf(current);
@@ -133,7 +137,8 @@ function getPreviousWorkingDay(isoStr) {
 
     // Re-start going forward from original date
     current = isoStr;
-    while (true) {
+    for (let i = 0; ; i++) {
+        if (i > MAX_STEPS) throw new Error(`getPreviousWorkingDay: no working day found near ${isoStr}`);
         const year = parseInt(current.slice(0, 4), 10);
         const holidays = getPolishHolidays(year);
         const wd = weekdayOf(current);
@@ -152,7 +157,8 @@ const ZIP_TO_CITY = {
     '43-246': 'Strumień',
 };
 
-const KNOWN_CITIES_FILE = path.join(process.cwd(), 'known_cities.json');
+// Override with KNOWN_CITIES_FILE (e.g. a mounted volume) – defaults to the working directory.
+const KNOWN_CITIES_FILE = process.env.KNOWN_CITIES_FILE || path.join(process.cwd(), 'known_cities.json');
 
 function loadKnownCities() {
     if (fs.existsSync(KNOWN_CITIES_FILE)) {
@@ -183,16 +189,25 @@ function saveKnownCities(citiesDict) {
 // Module-level cache
 const onlineCitiesCache = loadKnownCities();
 
+// Zip codes for which Nominatim returned nothing (or failed) during this process lifetime.
+// Not persisted, so a transient network error is retried after a restart.
+const failedZipLookups = new Set();
+
 // ── Nominatim geocoding ───────────────────────────────────────────────────────
 
+// Nominatim's usage policy requires a valid contact. Set NOMINATIM_CONTACT (e-mail or URL)
+// or NOMINATIM_USER_AGENT to override.
+const NOMINATIM_USER_AGENT = process.env.NOMINATIM_USER_AGENT
+    || `GeneratorEwidencji/4.0 (${process.env.NOMINATIM_CONTACT || 'https://github.com/Alexgal19/ewidencje'})`;
+
 /**
- * Simple HTTPS GET returning parsed JSON, or null on error.
+ * Simple HTTPS GET returning parsed JSON, or null on error / timeout.
  */
-function httpsGet(url) {
+function httpsGet(url, timeoutMs = 5000) {
     return new Promise((resolve) => {
-        const req = http.get(url, {
-            headers: { 'User-Agent': 'GeneratorEwidencji/4.0 (contact@example.com)' },
-            timeout: 5000,
+        const req = https.get(url, {
+            headers: { 'User-Agent': NOMINATIM_USER_AGENT },
+            timeout: timeoutMs,
         }, (res) => {
             let body = '';
             res.on('data', chunk => { body += chunk; });
@@ -200,8 +215,10 @@ function httpsGet(url) {
                 try { resolve(JSON.parse(body)); }
                 catch (e) { resolve(null); }
             });
-        }).on('error', () => resolve(null));
+        });
+        // The `timeout` option only emits an event – the request must be destroyed manually.
         req.on('timeout', () => req.destroy());
+        req.on('error', () => resolve(null));
     });
 }
 
@@ -250,6 +267,8 @@ function looksLikeStreet(text) {
     return false;
 }
 
+const DISTRICT_RE = /^\s*(osiedle|os\.|dzielnica)\s+/i;
+
 const ZIP_CITY_RE = /^(\d{2}-\d{3})\s+(.+)$/;
 const ZIP_RE = /^\d{2}-\d{3}$/;
 
@@ -278,10 +297,18 @@ async function parseGpsAddr(addr) {
         parts = parts.slice(1);
     }
 
-    const streetRaw   = parts[0];
+    // District / housing-estate names ("osiedle Powstańców Śląskich") are not cities and must
+    // not be written directly - drop them so the route refers to the real city instead.
+    let districtFirst = false;
+    if (parts.length >= 2 && parts.some(p => DISTRICT_RE.test(p))) {
+        districtFirst = DISTRICT_RE.test(parts[0]);
+        parts = parts.filter(p => !DISTRICT_RE.test(p));
+    }
+
+    const streetRaw   = districtFirst ? '' : parts[0];
     const streetClean = removeDigitsFromName(streetRaw);
 
-    const rest = parts.slice(1);
+    const rest = districtFirst ? parts : parts.slice(1);
     let zipCode  = '';
     let cityName = '';
 
@@ -314,12 +341,14 @@ async function parseGpsAddr(addr) {
     if (!cityName && zipCode) {
         if (onlineCitiesCache[zipCode]) {
             cityName = onlineCitiesCache[zipCode];
-        } else {
+        } else if (!failedZipLookups.has(zipCode)) {
             const found = await geocodeCityNominatim(zipCode, streetRaw);
             if (found) {
                 cityName = found;
                 onlineCitiesCache[zipCode] = cityName;
                 saveKnownCities(onlineCitiesCache);
+            } else {
+                failedZipLookups.add(zipCode);
             }
         }
     }

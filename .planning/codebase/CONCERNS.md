@@ -2,6 +2,8 @@
 
 **Analysis Date:** 2026-03-31
 
+> **Update 2026-10-07 — resolved since this audit:** error stack traces no longer returned; upload limit 10 MB + per-IP rate limit; field length limits; `/health` endpoint; Dockerfile uses `npm ci`, Node 22, non-root user; `engines` + `.nvmrc`; `http`→`https` alias renamed; `getPreviousWorkingDay` loops bounded; Nominatim User-Agent configurable (`NOMINATIM_CONTACT`), request timeout enforced, failed zips not re-queried; `KNOWN_CITIES_FILE` env; Cloud Run timeout raised to 300 s; JS tests now exist (server, generator, parser). Still open: no authentication, inline HTML in `server.js`, Python/Node duplication, `xlsParser` has no binary fixture test, sequential geocoding delay.
+
 ---
 
 ## Tech Debt
