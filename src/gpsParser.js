@@ -563,10 +563,11 @@ async function parseGps(buffer, filename) {
                         }
                     }
 
+                    // UWAGA: W raportach Cartrack wiersz "Razem:" zawiera w kolumnie Prędkość maks.
+                    // maksymalną prędkość z CAŁEGO miesiąca (np. 106 km/h), a nie z danego dnia!
+                    // Dlatego prędkość maksymalną dnia liczymy wyłącznie z pojedynczych wierszy tras (data).
                     let maxSpeed = 0;
                     if (maxSpeedCol >= 0) {
-                        const sumSpeed = parseFloat(String(row[maxSpeedCol] ?? '').replace(',', '.'));
-                        if (!isNaN(sumSpeed) && sumSpeed > 0) maxSpeed = sumSpeed;
                         for (const r of data) {
                             const sp = parseFloat(String(r[maxSpeedCol] ?? '').replace(',', '.'));
                             if (!isNaN(sp) && sp > maxSpeed) maxSpeed = sp;
@@ -607,47 +608,30 @@ async function parseGps(buffer, filename) {
                         }
                     }
 
-                    // Discrepancy criteria:
-                    // Reported km is tiny (< 1.0 km, e.g. 0.05 or 0.00), BUT:
-                    // 1) Car moved between different cities (e.g. Żory ➔ Strumień), OR
-                    // 2) Driving time was substantial (>= 5 minutes, i.e. 300s), OR
-                    // 3) Speed was substantial (>= 40 km/h)
+                    // Kryterium rzeczywistej dużej rozbieżności GPS:
+                    // Zapisany przebieg dzienny jest znikomy (< 1.0 km, np. 0.05 km), ALE:
+                    // Pojazd faktycznie wyjechał z jednego miasta do innego (intercity, np. Żory ➔ Strumień)
+                    // oraz czas tego przejazdu wynosił co najmniej 10 minut (>= 600 s; lub brak kolumny czasu w starym XLS).
+                    // Krótkie przestawienia auta pod domem (np. Pszczyna: Stenclówka) NIE są błędem GPS!
                     let isAnomaly = false;
                     let anomaly = null;
-                    if (km < 1.0) {
+                    if (km < 1.0 && intercity && (totalDriveSeconds >= 600 || driveTimeCol < 0)) {
                         const driveDurationFormatted = formatDriveDuration(totalDriveSeconds);
                         const driveMins = Math.round(totalDriveSeconds / 60);
-                        if (intercity) {
-                            isAnomaly = true;
-                            const timePart = driveDurationFormatted ? ` (czas: ${driveDurationFormatted}` : '';
-                            const speedPart = maxSpeed > 0 ? (timePart ? `, prędkość: ${Math.round(maxSpeed)} km/h)` : ` (prędkość: ${Math.round(maxSpeed)} km/h)`) : (timePart ? ')' : '');
-                            anomaly = {
-                                date: dateISO,
-                                plate: plate || '',
-                                reportedKm: km,
-                                fromCity,
-                                toCity,
-                                driveTimeMinutes: driveMins,
-                                driveDurationFormatted,
-                                maxSpeed: Math.round(maxSpeed),
-                                reason: `Przejazd między miastami: ${fromCity} ➔ ${toCity}${timePart}${speedPart}, a GPS zapisał zaledwie ${km} km! Prawdopodobna awaria licznika GPS.`,
-                            };
-                        } else if (totalDriveSeconds >= 300 || maxSpeed >= 40) {
-                            isAnomaly = true;
-                            const timeDesc = driveDurationFormatted ? `Jazda przez ${driveDurationFormatted}` : 'Jazda pojazdu';
-                            const speedDesc = maxSpeed > 0 ? ` z prędkością do ${Math.round(maxSpeed)} km/h` : '';
-                            anomaly = {
-                                date: dateISO,
-                                plate: plate || '',
-                                reportedKm: km,
-                                fromCity: fromCity || '',
-                                toCity: toCity || fromCity || '',
-                                driveTimeMinutes: driveMins,
-                                driveDurationFormatted,
-                                maxSpeed: Math.round(maxSpeed),
-                                reason: `${timeDesc}${speedDesc}, a GPS zapisał tylko ${km} km! Prawdopodobna awaria licznika GPS.`,
-                            };
-                        }
+                        isAnomaly = true;
+                        const timePart = driveDurationFormatted ? ` (czas: ${driveDurationFormatted}` : '';
+                        const speedPart = maxSpeed > 0 ? (timePart ? `, prędkość: ${Math.round(maxSpeed)} km/h)` : ` (prędkość: ${Math.round(maxSpeed)} km/h)`) : (timePart ? ')' : '');
+                        anomaly = {
+                            date: dateISO,
+                            plate: plate || '',
+                            reportedKm: km,
+                            fromCity,
+                            toCity,
+                            driveTimeMinutes: driveMins,
+                            driveDurationFormatted,
+                            maxSpeed: Math.round(maxSpeed),
+                            reason: `Przejazd między miastami: ${fromCity} ➔ ${toCity}${timePart}${speedPart}, a GPS zapisał zaledwie ${km} km! Prawdopodobna awaria licznika GPS.`,
+                        };
                     }
 
                     if (isAnomaly && anomaly) {
@@ -755,18 +739,26 @@ function aggregate(dayGroups) {
         }
         const entry = agg.get(t);
         entry.km += g.km;
-        entry.addresses.push(...g.addresses);
 
-        if (g.addresses.length) {
-            entry.dailyAddresses.push([...g.addresses]);
+        // Jeśli dany dzień (np. sobota/niedziela cofana na piątek) ma mikro-przebieg < 1.0 km i NIE jest anomalią GPS,
+        // to auto tylko odpalono na parkingu/pod domem (np. Pszczyna: Stenclówka 0.05 km) – doliczamy same ułamki km,
+        // ale NIE dopisujemy tego postoju jako osobnej trasy do piątku!
+        const isMicroNonAnomaly = g.km < MIN_DAILY_KM && !g.isAnomaly;
+        if (!isMicroNonAnomaly) {
+            entry.addresses.push(...g.addresses);
+
+            if (g.addresses.length) {
+                entry.dailyAddresses.push([...g.addresses]);
+            }
+
+            if (entry.firstLoc === null && g.firstStart) {
+                entry.firstLoc = g.firstStart;
+            }
+            if (g.lastEnd) {
+                entry.lastLoc = g.lastEnd;
+            }
         }
 
-        if (entry.firstLoc === null && g.firstStart) {
-            entry.firstLoc = g.firstStart;
-        }
-        if (g.lastEnd) {
-            entry.lastLoc = g.lastEnd;
-        }
         if (g.isAnomaly) {
             entry.isAnomaly = true;
             entry.anomaly = g.anomaly;

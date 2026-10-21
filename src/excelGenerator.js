@@ -428,7 +428,10 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
         const cel   = (km ? (tripPurpose || 'dowóz/odbiór pracowników') : '');
         let uwagi = mappedRefuelSet.has(isoDay) ? 'tankowanie' : '';
         if (isAnomaly) {
-            const anomNote = `⚠️ Błąd GPS (${km ?? 0} km)`;
+            const anomKm = (data.anomaly && data.anomaly.reportedKm != null)
+                ? Math.round(data.anomaly.reportedKm * 100) / 100
+                : (km ?? 0);
+            const anomNote = `⚠️ Błąd GPS (${anomKm} km)`;
             uwagi = uwagi ? `${uwagi} | ${anomNote}` : anomNote;
         }
 

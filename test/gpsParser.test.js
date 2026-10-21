@@ -455,6 +455,65 @@ describe('gpsParser', () => {
             assert.strictEqual(agg.get('2026-09-01').km, 0);
             assert.strictEqual(agg.get('2026-09-02').km, 50.05);
         });
+
+        it('does not falsely flag weekend driveway start (Pszczyna: Stenclówka) even when Razem row has cumulative monthly maxSpeed 106', async () => {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('Raport');
+            ws.addRow(['', '', '', '', '', '', '', '', '', '', 'Data: 2026-09-01 - 2026-09-30', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+
+            const headerVals = [];
+            headerVals[1] = 'Nr rejestracyjny';
+            headerVals[11] = 'Czas - Start';
+            headerVals[13] = 'Lokalizacja - Start';
+            headerVals[18] = 'Lokalizacja - Koniec';
+            headerVals[22] = 'Czas jazdy';
+            headerVals[24] = 'Dystans';
+            headerVals[25] = 'Prędkość maks.';
+            ws.addRow(headerVals);
+
+            // Friday 25.09.2026: normal trip 14 km
+            const rowFri = [];
+            rowFri[1] = 'DSW3276E';
+            rowFri[11] = new Date(Date.UTC(2026, 8, 25, 8, 0));
+            rowFri[13] = 'ulica Stenclówka 34, 43-245 Pszczyna, Poland';
+            rowFri[18] = 'ulica Rzemieślnicza, 43-246 Strumień, Poland';
+            rowFri[22] = '00:25:00';
+            rowFri[24] = 14.00;
+            rowFri[25] = 85.00;
+            ws.addRow(rowFri);
+            const razemFri = [];
+            razemFri[1] = 'Razem:';
+            razemFri[22] = '00:25:00';
+            razemFri[24] = 14.00;
+            razemFri[25] = 106.00;
+            ws.addRow(razemFri);
+
+            // Saturday 26.09.2026: driveway idling/move 0.05 km at Pszczyna: Stenclówka, Razem row has cumulative maxSpeed 106
+            const rowSat = [];
+            rowSat[1] = 'DSW3276E';
+            rowSat[11] = new Date(Date.UTC(2026, 8, 26, 10, 0));
+            rowSat[13] = 'ulica Stenclówka 34, 43-245 Pszczyna, Poland';
+            rowSat[18] = 'ulica Stenclówka 34, 43-245 Pszczyna, Poland';
+            rowSat[22] = '00:06:00';
+            rowSat[24] = 0.05;
+            rowSat[25] = 5.00;
+            ws.addRow(rowSat);
+            const razemSat = [];
+            razemSat[1] = 'Razem:';
+            razemSat[22] = '00:06:00';
+            razemSat[24] = 0.05;
+            razemSat[25] = 106.00; // Cartrack cumulative monthly maxSpeed in Razem row
+            ws.addRow(razemSat);
+
+            const buf = await wb.xlsx.writeBuffer();
+            const result = await parseGps(buf, 'DSW3276E.xlsx');
+
+            assert.strictEqual(result.anomalies.length, 0, 'Same-city driveway start must not be flagged as GPS anomaly');
+            const agg = aggregate(result.dayGroups);
+            const fri = agg.get('2026-09-25');
+            assert.strictEqual(fri.isAnomaly, false, 'Friday must not inherit false anomaly');
+            assert.strictEqual(fri.dailyAddresses.length, 1, 'Saturday <1km parking address must not be appended as second route on Friday');
+        });
     });
 
     describe('formatDriveDuration', () => {
