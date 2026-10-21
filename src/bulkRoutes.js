@@ -402,11 +402,148 @@ async function handleBulkGenerate(req, res) {
     }
 }
 
+/**
+ * POST /api/bulk/generate-single
+ * Generates an ewidencja Excel file for a single vehicle from the bulk review list,
+ * saves it to Supabase history, and returns the file directly as an attachment.
+ */
+async function handleBulkGenerateSingle(req, res) {
+    try {
+        if (!req.file || !req.file.buffer) {
+            return res.status(400).json({ error: 'Brak pliku GPS do wygenerowania.' });
+        }
+
+        let cfg = {};
+        try {
+            cfg = req.body.item_config ? JSON.parse(req.body.item_config) : req.body;
+        } catch (e) {
+            cfg = req.body || {};
+        }
+
+        const file = req.file;
+        const parsed = await parseGps(file.buffer, file.originalname);
+        const { plate: rawPlate, carModel: rawModel, dateFrom, dateTo, dayGroups, anomalies = [] } = parsed;
+
+        if (!dayGroups || !dayGroups.length) {
+            return res.status(400).json({ error: 'Brak danych o trasach w pliku GPS' });
+        }
+
+        const fallbackPlate = path.basename(file.originalname, path.extname(file.originalname));
+        const plate = cleanPlate(cfg.plate || rawPlate || fallbackPlate);
+        const carModel = (cfg.carModel || rawModel || '').trim();
+        const driverName = (cfg.driverName || '').trim();
+        const dysponentName = (cfg.dysponentName || req.body.default_dysponent || '').trim();
+        const tripPurpose = (cfg.tripPurpose || req.body.default_purpose || 'Dojazd do klientów / sprawy służbowe').trim();
+
+        const year = dateFrom ? parseInt(dateFrom.slice(0, 4), 10) : new Date().getFullYear();
+        const month = dateFrom ? parseInt(dateFrom.slice(5, 7), 10) : new Date().getMonth() + 1;
+
+        const odometer = parseInt(String(cfg.odometerStart || '0').replace(/[\s,]/g, ''), 10) || 0;
+        const targetOdo = parseInt(String(cfg.targetOdometer || '0').replace(/[\s,]/g, ''), 10) || 0;
+        const adjustMil = Boolean(cfg.adjustMileage && targetOdo > odometer);
+
+        let agg = aggregate(dayGroups);
+
+        if (adjustMil && targetOdo > odometer) {
+            const expectedGpsKm = targetOdo - odometer;
+            const currentGpsKm = [...agg.values()].reduce((s, v) => s + v.km, 0);
+
+            if (currentGpsKm > 0 && Math.abs(expectedGpsKm - currentGpsKm) > 0.01) {
+                const ratio = expectedGpsKm / currentGpsKm;
+                for (const [k, v] of agg) {
+                    if (v.km > 0) {
+                        v.km = Math.round(v.km * ratio * 100) / 100;
+                    }
+                }
+
+                const newTotal = [...agg.values()].reduce((s, v) => s + v.km, 0);
+                const diff = Math.round((expectedGpsKm - newTotal) * 100) / 100;
+                if (Math.abs(diff) > 0) {
+                    let maxDay = null;
+                    let maxKm = -Infinity;
+                    for (const [k, v] of agg) {
+                        if (v.km > 0 && v.km > maxKm) { maxKm = v.km; maxDay = k; }
+                    }
+                    if (maxDay !== null) {
+                        agg.get(maxDay).km = Math.round((agg.get(maxDay).km + diff) * 100) / 100;
+                    }
+                }
+            }
+        }
+
+        const refuelSet = new Set();
+        const rawDates = Array.isArray(cfg.refuelDates) ? cfg.refuelDates
+            : (typeof cfg.refuelDates === 'string' ? cfg.refuelDates.split(/[,;\s]+/) : []);
+        for (const rd of rawDates) {
+            const iso = parseAnyDateToIso(rd);
+            if (iso) refuelSet.add(iso);
+        }
+
+        const xlsBuf = await generateExcel(
+            plate, carModel, dateFrom, dateTo,
+            driverName, dysponentName, odometer, refuelSet, agg,
+            tripPurpose
+        );
+
+        const totalKm = Math.round([...agg.values()].reduce((s, v) => s + v.km, 0) * 100) / 100;
+        const outName = buildOutName(plate, year, month);
+
+        let userDrivers = [];
+        try {
+            userDrivers = await listDrivers(req.user.id);
+        } catch (e) {}
+
+        let vehRecord = null;
+        try {
+            vehRecord = await findVehicleByPlate(req.user.id, plate);
+        } catch (e) {}
+
+        let matchedDriver = null;
+        if (driverName && userDrivers.length > 0) {
+            matchedDriver = userDrivers.find(d => d.name.toLowerCase().trim() === driverName.toLowerCase());
+        }
+
+        try {
+            await saveEwidencja({
+                userId: req.user.id,
+                vehicleId: vehRecord ? vehRecord.id : null,
+                driverId: matchedDriver ? matchedDriver.id : null,
+                plate,
+                carModel: carModel || (vehRecord && (vehRecord.make || vehRecord.model) ? [vehRecord.make, vehRecord.model].filter(Boolean).join(' ') : ''),
+                driverName,
+                periodStart: dateFrom || null,
+                periodEnd: dateTo || null,
+                odometerStart: odometer,
+                odometerEnd: Math.floor(odometer) + Math.floor(totalKm),
+                totalKm,
+                fileName: outName,
+                buffer: xlsBuf,
+                photos: []
+            });
+        } catch (saveErr) {
+            console.warn('[Bulk Single] History save warning for', plate, saveErr.message);
+        }
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        const asciiName = outName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l').replace(/[^ -~]/g, '_');
+        res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(outName)}`);
+        if (anomalies.length > 0) {
+            res.setHeader('X-GPS-Anomalies', encodeURIComponent(JSON.stringify(anomalies)));
+        }
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, X-GPS-Anomalies');
+        res.send(xlsBuf);
+    } catch (err) {
+        console.error('[Bulk Single Generate Error]', err);
+        res.status(500).json({ error: String(err.message || err) });
+    }
+}
+
 module.exports = {
     BULK_ADMIN_EMAIL,
     requireBulkAdmin,
     handleBulkAnalyze,
     handleBulkGenerate,
+    handleBulkGenerateSingle,
     buildOutName,
     createZipArchive,
 };

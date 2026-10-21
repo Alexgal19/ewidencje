@@ -781,7 +781,8 @@ h1{font-size:var(--fs-3xl);color:var(--white);letter-spacing:-.01em}
                   <th>LICZNIK KONIEC (OPCJA)</th>
                   <th>TANKOWANIA (DATY)</th>
                   <th>PLIK WYJŚCIOWY</th>
-                  <th style="text-align:center;width:60px">USUŃ</th>
+                  <th style="text-align:center;width:95px">POBIERZ</th>
+                  <th style="text-align:center;width:50px">USUŃ</th>
                 </tr>
               </thead>
               <tbody id="bulk_table_body">
@@ -1699,6 +1700,12 @@ function renderBulkTable() {
         '</div>' +
       '</td>' +
       '<td style="font-size:0.75rem;color:var(--muted);white-space:nowrap">' + escapeHtml(item.outName || (item.plate + '.xlsx')) + '</td>' +
+      '<td style="text-align:center;white-space:nowrap">' +
+        '<button class="btn btn--secondary btn--sm" id="bulk-dl-btn-' + idx + '" onclick="downloadSingleBulkItem(' + idx + ')" title="Pobierz ten plik Excel" style="padding:4px 9px;font-size:0.75rem;display:inline-flex;align-items:center;gap:4px">' +
+          '<svg class="i" style="width:12px;height:12px"><use href="#i-download"/></svg>' +
+          '<span>Excel</span>' +
+        '</button>' +
+      '</td>' +
       '<td style="text-align:center">' +
         '<button class="btn btn--plain btn--icon" title="Usuń ten pojazd z paczki" onclick="removeBulkItem(' + idx + ')" style="color:var(--muted)"><svg class="i" style="width:14px;height:14px"><use href="#i-trash"/></svg></button>' +
       '</td>' +
@@ -1725,6 +1732,85 @@ function removeBulkItem(idx) {
   if (!window.bulkItems || !window.bulkItems[idx]) return;
   window.bulkItems.splice(idx, 1);
   renderBulkTable();
+}
+
+async function downloadSingleBulkItem(idx) {
+  if (!window.bulkItems || !window.bulkItems[idx]) return;
+  const it = window.bulkItems[idx];
+  const gpsInput = document.getElementById('bulk_gps_files');
+  if (!gpsInput || !gpsInput.files || !gpsInput.files[it.fileIndex]) {
+    alert('Brak oryginalnego pliku GPS w pamięci przeglądarki. Wgraj pliki ponownie.');
+    return;
+  }
+
+  const btn = document.getElementById('bulk-dl-btn-' + idx);
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin" style="display:inline-block;width:11px;height:11px;border-width:2px;margin-right:2px"></span> <span>...</span>';
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append('gps_file', gpsInput.files[it.fileIndex]);
+    fd.append('item_config', JSON.stringify({
+      plate: it.plate,
+      carModel: it.carModel,
+      driverName: it.driverName,
+      dysponentName: document.getElementById('bulk_default_dysponent').value,
+      tripPurpose: document.getElementById('bulk_default_purpose').value,
+      odometerStart: it.odometerStart,
+      targetOdometer: it.targetOdometer,
+      adjustMileage: Boolean(it.adjustMileage),
+      refuelDates: it.refuelDates || []
+    }));
+    fd.append('default_purpose', document.getElementById('bulk_default_purpose').value);
+    fd.append('default_dysponent', document.getElementById('bulk_default_dysponent').value);
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) throw new Error('Brak aktywnej sesji użytkownika');
+
+    const resp = await fetch('/api/bulk/generate-single', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + session.access_token },
+      body: fd
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error || ('Błąd serwera (' + resp.status + ')'));
+    }
+
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const mu = cd.match(/filename\*=UTF-8''([^;]+)/i);
+    const m = cd.match(/filename=(["']?)(.+?)\1(;|$)/);
+    let name = m ? m[2] : (it.outName || (it.plate + '.xlsx'));
+    if (mu) { try { name = decodeURIComponent(mu[1]); } catch(e) {} }
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (btn) {
+      btn.innerHTML = '<span style="color:#4ade80;font-weight:600">✓ Pobrano</span>';
+      setTimeout(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+      }, 2500);
+    }
+    if (typeof loadHistory === 'function') loadHistory();
+  } catch (err) {
+    alert('Błąd pobierania pliku dla ' + it.plate + ': ' + err.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
+  }
 }
 
 async function runBulkGenerate() {

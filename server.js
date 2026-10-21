@@ -9,7 +9,7 @@ const path    = require('path');
 const { parseGps, aggregate, aggregateActual } = require('./src/gpsParser');
 const { generateExcel } = require('./src/excelGenerator');
 const apiRoutes = require('./src/apiRoutes');
-const { requireBulkAdmin, handleBulkAnalyze, handleBulkGenerate } = require('./src/bulkRoutes');
+const { requireBulkAdmin, handleBulkAnalyze, handleBulkGenerate, handleBulkGenerateSingle } = require('./src/bulkRoutes');
 const { requireAuth, isSupabaseConfigured, saveEwidencja, getVehicle, addPhotosToHistoryEwidencja } = require('./src/supabase');
 
 const app    = express();
@@ -74,6 +74,13 @@ app.post('/api/bulk/generate',
         { name: 'fuel_file', maxCount: 1 }
     ]),
     handleBulkGenerate
+);
+
+app.post('/api/bulk/generate-single',
+    requireAuth,
+    requireBulkAdmin,
+    bulkUpload.single('gps_file'),
+    handleBulkGenerateSingle
 );
 
 // ── Routes ────────────────────────────────────────────────────────────────────

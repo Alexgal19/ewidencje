@@ -99,4 +99,20 @@ describe('bulkRoutes', () => {
         const total = Buffer.concat(chunks);
         assert.ok(total.length > 0, 'Should output valid zip bytes');
     });
+
+    it('handleBulkGenerateSingle rejects when no file is provided', async () => {
+        const { handleBulkGenerateSingle } = require('../src/bulkRoutes');
+        let status = null;
+        let responseJson = null;
+        const res = {
+            status: (s) => {
+                status = s;
+                return { json: (o) => { responseJson = o; } };
+            }
+        };
+        const req = { file: null, user: { id: 'u1' } };
+        await handleBulkGenerateSingle(req, res);
+        assert.strictEqual(status, 400);
+        assert.ok(responseJson.error.includes('Brak pliku'));
+    });
 });
