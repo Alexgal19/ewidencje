@@ -544,6 +544,48 @@ async function parseGps(buffer, filename) {
  * Aggregate dayGroups, shifting weekends/holidays to the previous working day.
  * Returns Map<isoStr, { km, addresses, dailyAddresses, firstLoc, lastLoc }>
  */
+const MIN_DAILY_KM = 1.0;
+
+/**
+ * Przerzuca mikroskopijne przebiegi dzienne (< 1 km, np. 0.05 km - samo odpalenie silnika / przestawienie na parkingu)
+ * na kolejny dzień roboczy z wyjazdem, aby w ewidencji nie generować pustego wpisu z trasą i 0 km.
+ */
+function rollOverSmallTrips(agg) {
+    const dates = [...agg.keys()].sort();
+    let carry = 0;
+
+    for (let i = 0; i < dates.length; i++) {
+        const d = dates[i];
+        const entry = agg.get(d);
+        if (!entry) continue;
+
+        if (carry > 0) {
+            entry.km = Math.round((entry.km + carry) * 100) / 100;
+            carry = 0;
+        }
+
+        if (entry.km > 0 && entry.km < MIN_DAILY_KM) {
+            if (i < dates.length - 1) {
+                carry = entry.km;
+            } else {
+                // Ostatni dzień w miesiącu – cofnij na poprzedni dzień z wyjazdem
+                for (let j = i - 1; j >= 0; j--) {
+                    const prevEntry = agg.get(dates[j]);
+                    if (prevEntry && prevEntry.km >= MIN_DAILY_KM) {
+                        prevEntry.km = Math.round((prevEntry.km + entry.km) * 100) / 100;
+                        break;
+                    }
+                }
+            }
+            entry.km = 0;
+            entry.addresses = [];
+            entry.dailyAddresses = [];
+            entry.firstLoc = null;
+            entry.lastLoc = null;
+        }
+    }
+}
+
 function aggregate(dayGroups) {
     const agg = new Map();
     const sorted = [...dayGroups].sort((a, b) => a.date.localeCompare(b.date));
@@ -570,6 +612,7 @@ function aggregate(dayGroups) {
         }
     }
 
+    rollOverSmallTrips(agg);
     return agg;
 }
 
@@ -603,6 +646,7 @@ function aggregateActual(dayGroups) {
         }
     }
 
+    rollOverSmallTrips(agg);
     return agg;
 }
 
@@ -691,4 +735,6 @@ module.exports = {
     parseGpsAddr,
     extractCity,
     shortenAddr,
+    MIN_DAILY_KM,
+    rollOverSmallTrips,
 };

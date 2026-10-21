@@ -19,6 +19,8 @@ const {
     aggregate,
     aggregateActual,
     buildRoute,
+    MIN_DAILY_KM,
+    rollOverSmallTrips,
 } = require('../src/gpsParser');
 
 describe('gpsParser', () => {
@@ -205,6 +207,33 @@ describe('gpsParser', () => {
             const agg = aggregate(dayGroups);
             assert.strictEqual(agg.get('2025-12-01').km, 5);
             assert.strictEqual(agg.get('2025-12-02').km, 8);
+        });
+
+        it('rolls over small micro-trips (< 1 km, e.g. 0.05 km) to the next driving day', () => {
+            const dayGroups = [
+                { date: '2026-09-01', km: 139, addresses: ['A'], firstStart: 'A', lastEnd: 'B' },
+                { date: '2026-09-04', km: 0.05, addresses: ['C'], firstStart: 'C', lastEnd: 'D' },
+                { date: '2026-09-07', km: 70, addresses: ['E'], firstStart: 'E', lastEnd: 'F' },
+            ];
+            const agg = aggregate(dayGroups);
+            // Day 04 had 0.05 km -> should become 0 km with cleared addresses
+            assert.strictEqual(agg.get('2026-09-04').km, 0);
+            assert.strictEqual(agg.get('2026-09-04').addresses.length, 0);
+            // Day 07 should receive the 0.05 km rollover (70 + 0.05 = 70.05)
+            assert.strictEqual(agg.get('2026-09-07').km, 70.05);
+            // Total km sum is preserved exactly: 139 + 0 + 70.05 = 209.05
+            const total = [...agg.values()].reduce((s, v) => s + v.km, 0);
+            assert.strictEqual(Math.round(total * 100) / 100, 209.05);
+        });
+
+        it('rolls back to previous driving day if micro-trip is on the last day of month', () => {
+            const dayGroups = [
+                { date: '2026-09-28', km: 100, addresses: ['A'], firstStart: 'A', lastEnd: 'B' },
+                { date: '2026-09-30', km: 0.05, addresses: ['C'], firstStart: 'C', lastEnd: 'D' },
+            ];
+            const agg = aggregate(dayGroups);
+            assert.strictEqual(agg.get('2026-09-30').km, 0);
+            assert.strictEqual(agg.get('2026-09-28').km, 100.05);
         });
     });
 

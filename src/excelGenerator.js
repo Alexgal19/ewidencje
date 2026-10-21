@@ -391,7 +391,7 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
         const isFree    = isWeekend || holidays.has(isoDay);
 
         const data  = agg.get(isoDay);
-        const km    = (data && data.km > 0) ? Math.round(data.km * 100) / 100 : null;
+        const km    = (data && data.km >= 1.0) ? Math.round(data.km * 100) / 100 : null;
 
         let route = '';
         if (data && km) {
