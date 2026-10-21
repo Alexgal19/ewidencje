@@ -115,4 +115,60 @@ describe('bulkRoutes', () => {
         assert.strictEqual(status, 400);
         assert.ok(responseJson.error.includes('Brak pliku'));
     });
+
+    it('getLastEwidencjaForPlate finds previous month odometer matching normalized plate', async () => {
+        const supabase = require('../src/supabase');
+
+        const mockData = [
+            {
+                id: '1',
+                plate: 'DSW 2341E',
+                period_start: '2026-08-01',
+                period_end: '2026-08-31',
+                odometer_start: 160000,
+                odometer_end: 163200,
+                driver_name: 'Adapa Venkata',
+                user_id: 'u1'
+            },
+            {
+                id: '2',
+                plate: 'DSW 2341E',
+                period_start: '2026-07-01',
+                period_end: '2026-07-31',
+                odometer_start: 157000,
+                odometer_end: 160000,
+                driver_name: 'Adapa Venkata',
+                user_id: 'u1'
+            }
+        ];
+
+        const mockClient = {
+            from: () => ({
+                select: () => {
+                    const builder = {
+                        order: () => builder,
+                        eq: () => builder,
+                        then: (resolve) => resolve({ data: mockData, error: null })
+                    };
+                    return builder;
+                }
+            })
+        };
+
+        supabase._setAdminClientForTesting(mockClient);
+
+        try {
+            // Looking for September 2026 (beforeDate: 2026-09-01)
+            const result = await supabase.getLastEwidencjaForPlate('u1', 'DSW2341E', '2026-09-01');
+            assert.ok(result, 'Should find previous ewidencja');
+            assert.strictEqual(result.odometer_end, 163200, 'Should match August ending odometer');
+            assert.strictEqual(result.driver_name, 'Adapa Venkata');
+
+            // Non-existent plate
+            const nonExistent = await supabase.getLastEwidencjaForPlate('u1', 'DSW9999Z', '2026-09-01');
+            assert.strictEqual(nonExistent, null, 'Should return null for unknown plate');
+        } finally {
+            supabase._setAdminClientForTesting(null);
+        }
+    });
 });

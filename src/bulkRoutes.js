@@ -105,6 +105,7 @@ async function handleBulkAnalyze(req, res) {
 
                 const year = dateFrom ? parseInt(dateFrom.slice(0, 4), 10) : new Date().getFullYear();
                 const month = dateFrom ? parseInt(dateFrom.slice(5, 7), 10) : new Date().getMonth() + 1;
+                const referenceDate = dateFrom || `${year}-${String(month).padStart(2, '0')}-01`;
 
                 // Look up vehicle & previous ewidencja in Supabase
                 let veh = null;
@@ -112,7 +113,7 @@ async function handleBulkAnalyze(req, res) {
                 if (isSupabaseConfigured() && userId) {
                     try {
                         veh = await findVehicleByPlate(userId, plate);
-                        lastEwid = await getLastEwidencjaForPlate(userId, plate);
+                        lastEwid = await getLastEwidencjaForPlate(userId, plate, referenceDate, veh ? veh.id : null);
                     } catch (e) {
                         console.warn('[Bulk] DB lookup warning for plate', plate, e.message);
                     }
@@ -120,8 +121,12 @@ async function handleBulkAnalyze(req, res) {
 
                 const carModel = rawModel || (veh && (veh.make || veh.model) ? [veh.make, veh.model].filter(Boolean).join(' ') : (lastEwid ? lastEwid.car_model : ''));
                 const driverName = (lastEwid && lastEwid.driver_name) ? lastEwid.driver_name : '';
-                const odometerStart = (lastEwid && typeof lastEwid.odometer_end === 'number') ? lastEwid.odometer_end : 0;
-                const hasPreviousOdo = Boolean(lastEwid && typeof lastEwid.odometer_end === 'number');
+                const rawOdo = lastEwid ? (lastEwid.odometer_end ?? lastEwid.odometer_start) : null;
+                const parsedOdo = (rawOdo !== null && rawOdo !== undefined && !isNaN(Number(rawOdo)) && Number(rawOdo) > 0)
+                    ? Math.round(Number(rawOdo))
+                    : 0;
+                const odometerStart = parsedOdo;
+                const hasPreviousOdo = parsedOdo > 0;
 
                 // Match refuel dates within date range
                 let refuelDates = [];

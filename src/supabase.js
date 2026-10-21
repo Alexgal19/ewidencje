@@ -11,15 +11,18 @@ const BUCKET = 'ewidencje';
 
 let _admin = null;
 
+function _setAdminClientForTesting(client) {
+    _admin = client;
+}
+
 function getSupabaseAdmin() {
+    if (_admin) return _admin;
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) {
         throw new Error('Brak konfiguracji Supabase. Ustaw SUPABASE_URL i SUPABASE_SERVICE_ROLE_KEY w pliku .env');
     }
-    if (!_admin) {
-        _admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-    }
+    _admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
     return _admin;
 }
 
@@ -96,16 +99,15 @@ async function getVehicle(userId, id) {
 /** Latest ewidencja row for a vehicle (last odometer + last driver). */
 async function getLastEwidencjaForVehicle(userId, vehicleId) {
     if (!vehicleId) return null;
-    const { data, error } = await getSupabaseAdmin()
-        .from('ewidencje')
-        .select('odometer_end, driver_name, period_end')
-        .eq('user_id', userId)
-        .eq('vehicle_id', vehicleId)
-        .order('created_at', { ascending: false })
-        .limit(1)
+    const sb = getSupabaseAdmin();
+    const { data: veh } = await sb
+        .from('vehicles')
+        .select('id, plate')
+        .eq('id', vehicleId)
         .maybeSingle();
-    if (error) throw new Error(error.message);
-    return data || null;
+
+    const plate = veh ? veh.plate : null;
+    return getLastEwidencjaForPlate(userId, plate, null, vehicleId);
 }
 
 // ── Drivers ──────────────────────────────────────────────────────────────────
@@ -120,29 +122,103 @@ async function findVehicleByPlate(userId, plate) {
     // Fetch user's vehicles and match normalized plates
     const vehicles = await listVehicles(userId);
     const match = vehicles.find(v => String(v.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === clean);
-    return match || null;
+    if (match) return match;
+
+    // Fallback: search all vehicles in Supabase if fleet manager
+    try {
+        const { data } = await getSupabaseAdmin()
+            .from('vehicles')
+            .select('id, plate, make, model, created_at');
+        if (data && data.length) {
+            const gMatch = data.find(v => String(v.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === clean);
+            if (gMatch) return gMatch;
+        }
+    } catch (e) {
+        // ignore fallback errors
+    }
+
+    return null;
 }
 
-/** Latest ewidencja row matching a registration plate, sorted primarily by period_end desc. */
-async function getLastEwidencjaForPlate(userId, plate) {
-    if (!plate) return null;
-    const clean = String(plate).toUpperCase().replace(/[^A-Z0-9]/g, '');
-    if (!clean) return null;
+/**
+ * Latest ewidencja row matching a registration plate or vehicle_id.
+ * If beforeDate is given (e.g. '2026-09-01'), prioritizes the previous month's ewidencja
+ * (period_end <= beforeDate or period_start < beforeDate).
+ */
+async function getLastEwidencjaForPlate(userId, plate, beforeDate = null, vehicleId = null) {
+    if (!plate && !vehicleId) return null;
+    const clean = String(plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
     const sb = getSupabaseAdmin();
-    // Try matching exact or with wildcards
-    const { data, error } = await sb
+    let query = sb
         .from('ewidencje')
-        .select('odometer_end, driver_name, period_end, car_model, vehicle_id, driver_id, created_at')
-        .eq('user_id', userId)
+        .select('id, plate, odometer_start, odometer_end, driver_name, period_start, period_end, car_model, vehicle_id, driver_id, created_at')
         .order('period_end', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
 
-    if (error || !data) return null;
+    if (userId) {
+        query = query.eq('user_id', userId);
+    }
 
-    // Find first record where normalized plate matches
-    const match = data.find(row => String(row.plate || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === clean);
-    return match || null;
+    const { data, error } = await query;
+    let rows = data || [];
+
+    // Fallback: If not found under current userId, check globally for company fleet
+    if (!error && rows.length === 0 && userId) {
+        try {
+            const { data: globalData } = await sb
+                .from('ewidencje')
+                .select('id, plate, odometer_start, odometer_end, driver_name, period_start, period_end, car_model, vehicle_id, driver_id, created_at')
+                .order('period_end', { ascending: false, nullsFirst: false })
+                .order('created_at', { ascending: false });
+            if (globalData && globalData.length) {
+                rows = globalData;
+            }
+        } catch (e) {}
+    }
+
+    if (!rows.length) return null;
+
+    // Filter records matching plate or vehicle_id
+    const matches = rows.filter(row => {
+        if (vehicleId && row.vehicle_id && String(row.vehicle_id) === String(vehicleId)) return true;
+        if (clean && row.plate) {
+            const p = String(row.plate).toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (p === clean) return true;
+        }
+        return false;
+    });
+
+    if (!matches.length) return null;
+
+    // If beforeDate is given (e.g. '2026-09-01'), find prior month's record
+    if (beforeDate) {
+        // 1. Prior record with valid odometer_end (> 0) ending on or before beforeDate
+        const priorEndWithOdo = matches.find(r => r.period_end && r.period_end <= beforeDate && Number(r.odometer_end) > 0);
+        if (priorEndWithOdo) return priorEndWithOdo;
+
+        // 2. Any prior record ending on or before beforeDate
+        const priorEnd = matches.find(r => r.period_end && r.period_end <= beforeDate);
+        if (priorEnd) return priorEnd;
+
+        // 3. Record starting strictly before beforeDate with valid odometer
+        const priorStart = matches.find(r => r.period_start && r.period_start < beforeDate && (Number(r.odometer_end) > 0 || Number(r.odometer_start) > 0));
+        if (priorStart) return priorStart;
+
+        // 4. Same period already generated (re-analyzing current month) -> return its starting odometer
+        const samePeriod = matches.find(r => r.period_start && r.period_start === beforeDate);
+        if (samePeriod) {
+            return {
+                ...samePeriod,
+                odometer_end: (typeof samePeriod.odometer_start === 'number' && samePeriod.odometer_start > 0)
+                    ? samePeriod.odometer_start
+                    : samePeriod.odometer_end
+            };
+        }
+    }
+
+    // Default to the latest match
+    return matches[0] || null;
 }
 
 
@@ -368,6 +444,7 @@ async function addPhotosToHistoryEwidencja(userId, id, photos) {
 module.exports = {
     BUCKET,
     getSupabaseAdmin,
+    _setAdminClientForTesting,
     isSupabaseConfigured,
     requireAuth,
     listVehicles,
