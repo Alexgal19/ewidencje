@@ -21,6 +21,7 @@ const {
     buildRoute,
     MIN_DAILY_KM,
     rollOverSmallTrips,
+    formatDriveDuration,
 } = require('../src/gpsParser');
 
 describe('gpsParser', () => {
@@ -453,6 +454,25 @@ describe('gpsParser', () => {
             // Day 1 micro-trip should be rolled over into Day 2
             assert.strictEqual(agg.get('2026-09-01').km, 0);
             assert.strictEqual(agg.get('2026-09-02').km, 50.05);
+        });
+    });
+
+    describe('formatDriveDuration', () => {
+        it('formats zero or negative as empty string', () => {
+            assert.strictEqual(formatDriveDuration(0), '');
+            assert.strictEqual(formatDriveDuration(-5), '');
+        });
+
+        it('formats seconds under 60', () => {
+            assert.strictEqual(formatDriveDuration(45), '45 s');
+        });
+
+        it('formats exact minutes', () => {
+            assert.strictEqual(formatDriveDuration(300), '5 min');
+        });
+
+        it('formats minutes and seconds', () => {
+            assert.strictEqual(formatDriveDuration(345), '5 min 45 s');
         });
     });
 });

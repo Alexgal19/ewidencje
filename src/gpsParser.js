@@ -397,6 +397,17 @@ async function extractCity(addr) {
     return removeDigitsFromName((cityName || '').trim());
 }
 
+// ── Drive duration formatter ──────────────────────────────────────────────
+function formatDriveDuration(totalSeconds) {
+    if (!totalSeconds || totalSeconds <= 0) return '';
+    const secs = Math.round(totalSeconds);
+    if (secs < 60) return `${secs} s`;
+    const mins = Math.floor(secs / 60);
+    const remSecs = secs % 60;
+    if (remSecs === 0) return `${mins} min`;
+    return `${mins} min ${remSecs} s`;
+}
+
 // ── GPS file parsing ──────────────────────────────────────────────────────────
 
 /**
@@ -604,9 +615,12 @@ async function parseGps(buffer, filename) {
                     let isAnomaly = false;
                     let anomaly = null;
                     if (km < 1.0) {
+                        const driveDurationFormatted = formatDriveDuration(totalDriveSeconds);
                         const driveMins = Math.round(totalDriveSeconds / 60);
                         if (intercity) {
                             isAnomaly = true;
+                            const timePart = driveDurationFormatted ? ` (czas: ${driveDurationFormatted}` : '';
+                            const speedPart = maxSpeed > 0 ? (timePart ? `, prędkość: ${Math.round(maxSpeed)} km/h)` : ` (prędkość: ${Math.round(maxSpeed)} km/h)`) : (timePart ? ')' : '');
                             anomaly = {
                                 date: dateISO,
                                 plate: plate || '',
@@ -614,15 +628,14 @@ async function parseGps(buffer, filename) {
                                 fromCity,
                                 toCity,
                                 driveTimeMinutes: driveMins,
+                                driveDurationFormatted,
                                 maxSpeed: Math.round(maxSpeed),
-                                reason: `Przejazd między miastami: ${fromCity} ➔ ${toCity}` +
-                                    (driveMins > 0 ? ` (czas: ~${driveMins} min` : '') +
-                                    (maxSpeed > 0 ? `, prędkość: ${Math.round(maxSpeed)} km/h` : '') +
-                                    (driveMins > 0 ? ')' : '') +
-                                    `, a GPS zapisał zaledwie ${km} km! Prawdopodobna awaria licznika GPS.`,
+                                reason: `Przejazd między miastami: ${fromCity} ➔ ${toCity}${timePart}${speedPart}, a GPS zapisał zaledwie ${km} km! Prawdopodobna awaria licznika GPS.`,
                             };
                         } else if (totalDriveSeconds >= 300 || maxSpeed >= 40) {
                             isAnomaly = true;
+                            const timeDesc = driveDurationFormatted ? `Jazda przez ${driveDurationFormatted}` : 'Jazda pojazdu';
+                            const speedDesc = maxSpeed > 0 ? ` z prędkością do ${Math.round(maxSpeed)} km/h` : '';
                             anomaly = {
                                 date: dateISO,
                                 plate: plate || '',
@@ -630,10 +643,9 @@ async function parseGps(buffer, filename) {
                                 fromCity: fromCity || '',
                                 toCity: toCity || fromCity || '',
                                 driveTimeMinutes: driveMins,
+                                driveDurationFormatted,
                                 maxSpeed: Math.round(maxSpeed),
-                                reason: `Jazda przez ~${driveMins} min` +
-                                    (maxSpeed > 0 ? ` z prędkością do ${Math.round(maxSpeed)} km/h` : '') +
-                                    `, a GPS zapisał tylko ${km} km! Prawdopodobna awaria licznika GPS.`,
+                                reason: `${timeDesc}${speedDesc}, a GPS zapisał tylko ${km} km! Prawdopodobna awaria licznika GPS.`,
                             };
                         }
                     }
@@ -890,4 +902,5 @@ module.exports = {
     shortenAddr,
     MIN_DAILY_KM,
     rollOverSmallTrips,
+    formatDriveDuration,
 };

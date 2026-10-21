@@ -425,6 +425,51 @@ h1{font-size:var(--fs-3xl);color:var(--white);letter-spacing:-.01em}
   .bulk-badge--orange{background:rgba(249,115,22,0.15);color:#fb923c;border:1px solid rgba(249,115,22,0.3)}
   .bulk-badge--blue{background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)}
 
+  /* Expandable vehicle row styles */
+  .bulk-row{cursor:pointer;transition:background 0.15s ease}
+  .bulk-row:hover{background:rgba(255,255,255,0.04) !important}
+  .bulk-row.is-expanded{background:rgba(34,197,94,0.06) !important}
+  .bulk-chevron{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:12px;color:var(--muted);transition:transform 0.22s cubic-bezier(0.4,0,0.2,1),color 0.2s ease;user-select:none}
+  .bulk-row.is-expanded .bulk-chevron{transform:rotate(90deg);color:#4ade80}
+  .bulk-detail-row td{background:rgba(12,18,32,0.72) !important;border-bottom:2px solid rgba(255,255,255,0.08) !important;padding:14px 20px !important}
+  .bulk-anom-box{display:flex;flex-direction:column;gap:10px}
+  .bulk-anom-item{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.28);border-left:4px solid #ef4444;border-radius:6px;padding:10px 14px}
+  .bulk-ok-box{background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-left:4px solid #10b981;border-radius:6px;padding:12px 16px;color:#86efac;display:flex;align-items:center;gap:10px;font-size:0.85rem}
+
+  /* Premium Excel Generation Animation */
+  @keyframes premFadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes premPopIn{from{opacity:0;transform:scale(0.92) translateY(14px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  @keyframes spinClockwise{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  @keyframes spinCounter{from{transform:rotate(360deg)}to{transform:rotate(0deg)}}
+  @keyframes pulseBadge{0%,100%{transform:scale(1);filter:drop-shadow(0 0 12px rgba(16,185,129,0.3))}50%{transform:scale(1.05);filter:drop-shadow(0 0 24px rgba(16,185,129,0.6))}}
+  @keyframes premShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+  @keyframes floatSparkle{0%,100%{transform:translateY(0) scale(0.85);opacity:0.3}50%{transform:translateY(-8px) scale(1.15);opacity:0.95}}
+
+  .premium-gen-backdrop{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(5,9,18,0.82);backdrop-filter:blur(14px) saturate(180%);animation:premFadeIn 0.28s ease-out}
+  .premium-gen-card{position:relative;overflow:hidden;background:linear-gradient(145deg,#131c2e,#0a0f1d);border:1px solid rgba(255,255,255,0.12);box-shadow:0 35px 80px -15px rgba(0,0,0,0.85),0 0 50px rgba(16,185,129,0.18);border-radius:24px;padding:34px 30px 28px;width:92%;max-width:470px;text-align:center;animation:premPopIn 0.32s cubic-bezier(0.16,1,0.3,1)}
+  .prem-ambient-glow{position:absolute;top:-50px;left:50%;transform:translateX(-50%);width:220px;height:160px;background:radial-gradient(circle,rgba(16,185,129,0.35) 0%,transparent 70%);filter:blur(35px);pointer-events:none}
+  .prem-icon-stage{position:relative;width:96px;height:96px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center}
+  .prem-ring-outer{position:absolute;inset:-8px;border-radius:50%;border:2px dashed rgba(16,185,129,0.45);animation:spinClockwise 9s linear infinite}
+  .prem-ring-inner{position:absolute;inset:-2px;border-radius:50%;border:2px solid transparent;border-top-color:#34d399;border-right-color:#10b981;animation:spinCounter 2.5s linear infinite}
+  .prem-excel-badge{width:66px;height:66px;border-radius:18px;display:flex;align-items:center;justify-content:center;animation:pulseBadge 2.4s ease-in-out infinite}
+  .prem-sparkle{position:absolute;color:#6ee7b7;font-size:13px;animation:floatSparkle 2s ease-in-out infinite}
+  .prem-sparkle.s1{top:-4px;left:10px;animation-delay:0.2s}
+  .prem-sparkle.s2{bottom:2px;right:8px;animation-delay:0.9s}
+  .prem-sparkle.s3{top:18px;right:-8px;animation-delay:1.4s}
+  .prem-gen-title{font-family:var(--font-display,inherit);font-size:1.25rem;font-weight:700;color:#ffffff;margin:0 0 6px;letter-spacing:-0.01em}
+  .prem-gen-sub{font-size:0.84rem;color:#94a3b8;margin:0 0 22px;min-height:20px;line-height:1.4}
+  .prem-progress-wrap{position:relative;width:100%;height:8px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin-bottom:22px}
+  .prem-progress-bar{position:relative;height:100%;background:linear-gradient(90deg,#10b981,#34d399,#6ee7b7);border-radius:999px;transition:width 0.35s ease-out}
+  .prem-shimmer{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);animation:premShimmer 1.8s infinite}
+  .prem-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .prem-step-chip{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:0.67rem;color:#64748b;font-weight:600;text-align:center;line-height:1.2;transition:all 0.25s ease}
+  .step-dot{width:8px;height:8px;border-radius:50%;background:#334155;transition:all 0.25s ease}
+  .prem-step-chip.active{color:#34d399}
+  .prem-step-chip.active .step-dot{background:#34d399;box-shadow:0 0 10px #34d399;transform:scale(1.25)}
+  .prem-step-chip.completed{color:#94a3b8}
+  .prem-step-chip.completed .step-dot{background:#10b981}
+
+
 </style>
 </head>
 <body>
@@ -754,6 +799,7 @@ h1{font-size:var(--fs-3xl);color:var(--white);letter-spacing:-.01em}
             <div>
               <h3 style="margin:0">Wykryte pojazdy do wygenerowania</h3>
               <p id="bulk_summary_sub" style="margin:2px 0 0;font-size:0.8rem;color:var(--muted)">Zweryfikuj liczniki i kierowców przed utworzeniem plików</p>
+              <div style="margin:3px 0 0;font-size:0.75rem;color:#38bdf8;display:flex;align-items:center;gap:4px"><span>💡</span><span>Wskazówka: Kliknij dowolny wiersz pojazdu, aby sprawdzić dni i szczegóły rozbieżności GPS.</span></div>
             </div>
           </div>
           <button class="btn btn--primary btn--lg" id="bulk_generate_btn" onclick="runBulkGenerate()" style="padding:10px 24px">
@@ -1414,6 +1460,7 @@ async function generate(){
     }
     
     const {data:{session}}=await supabaseClient.auth.getSession();
+    showPremiumGenModal('Generowanie Ewidencji Excel', 'Analiza pliku GPS i wyliczanie tras...');
     const resp=await fetch('/generate',{method:'POST',headers:{'Authorization':'Bearer '+session.access_token},body:form});
     stopProgress();
     const rawAnomalies = resp.headers.get('x-gps-anomalies');
@@ -1434,9 +1481,10 @@ async function generate(){
     let name=m?m[2]:'ewidencja.xlsx';
     if(mu){try{name=decodeURIComponent(mu[1])}catch(e){}}
     const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+    completePremiumGenModal('Plik "' + name + '" pobrany pomyślnie!');
     showStatus('ok','\u2713','Plik "'+name+'" pobrany i zapisany w historii!' + anomMsg);
     loadHistory();
-  }catch(err){stopProgress();showStatus('err','\u2717','B\u0142\u0105d: '+err.message)}
+  }catch(err){hidePremiumGenModal();stopProgress();showStatus('err','\u2717','B\u0142\u0105d: '+err.message)}
   finally{btn.disabled=false;spin.style.display='none';btxt.textContent='Generuj ewidencj\u0119 Excel'}
 }
 
@@ -1633,17 +1681,119 @@ async function runBulkAnalyze() {
   }
 }
 
+
+// ── Premium Modal Controller ──────────────────────────────────────────────
+let _premGenInterval = null;
+
+function showPremiumGenModal(title, sub) {
+  const modal = document.getElementById('premium-gen-modal');
+  if (!modal) return;
+  const titleEl = document.getElementById('prem-gen-title');
+  const subEl = document.getElementById('prem-gen-sub');
+  if (titleEl) titleEl.textContent = title || 'Generowanie Ewidencji Excel';
+  if (subEl) subEl.textContent = sub || 'Inicjalizacja i przetwarzanie danych trasy...';
+
+  const pbar = document.getElementById('prem-pbar');
+  if (pbar) pbar.style.width = '12%';
+  setPremiumGenStep(1);
+
+  modal.style.display = 'flex';
+  modal.style.opacity = '1';
+  modal.setAttribute('aria-hidden', 'false');
+
+  if (_premGenInterval) clearInterval(_premGenInterval);
+  let pct = 12;
+  _premGenInterval = setInterval(() => {
+    pct += Math.random() * 8 + 4;
+    if (pct > 92) pct = 92;
+    if (pbar) pbar.style.width = pct + '%';
+
+    if (pct > 25 && pct <= 55) {
+      setPremiumGenStep(2);
+      if (subEl) subEl.textContent = 'Weryfikacja liczników, tankowań i wykrywanie anomalii...';
+    } else if (pct > 55 && pct <= 85) {
+      setPremiumGenStep(3);
+      if (subEl) subEl.textContent = 'Precyzyjne formatowanie arkuszy A4 i formuł Excel...';
+    } else if (pct > 85) {
+      setPremiumGenStep(4);
+      if (subEl) subEl.textContent = 'Pakowanie pliku i szykowanie do pobrania...';
+    }
+  }, 450);
+}
+
+function setPremiumGenStep(stepIndex) {
+  for (let s = 1; s <= 4; s++) {
+    const el = document.getElementById('prem-step-' + s);
+    if (!el) continue;
+    if (s < stepIndex) {
+      el.className = 'prem-step-chip completed';
+    } else if (s === stepIndex) {
+      el.className = 'prem-step-chip active';
+    } else {
+      el.className = 'prem-step-chip';
+    }
+  }
+}
+
+function completePremiumGenModal(msg) {
+  if (_premGenInterval) {
+    clearInterval(_premGenInterval);
+    _premGenInterval = null;
+  }
+  const pbar = document.getElementById('prem-pbar');
+  if (pbar) pbar.style.width = '100%';
+  setPremiumGenStep(4);
+  const subEl = document.getElementById('prem-gen-sub');
+  if (subEl) subEl.textContent = msg || 'Gotowe! Plik pobrany pomyślnie.';
+  setTimeout(() => {
+    hidePremiumGenModal();
+  }, 850);
+}
+
+function hidePremiumGenModal() {
+  if (_premGenInterval) {
+    clearInterval(_premGenInterval);
+    _premGenInterval = null;
+  }
+  const modal = document.getElementById('premium-gen-modal');
+  if (!modal) return;
+  modal.style.transition = 'opacity 0.25s ease';
+  modal.style.opacity = '0';
+  setTimeout(() => {
+    modal.style.display = 'none';
+    modal.style.opacity = '1';
+    modal.style.transition = '';
+    modal.setAttribute('aria-hidden', 'true');
+  }, 260);
+}
+
+function onBulkRowClick(e, idx) {
+  if (e.target.closest('input, button, select, textarea, a, label')) return;
+  toggleBulkDetail(idx);
+}
+
+function toggleBulkDetail(idx) {
+  const detailRow = document.getElementById('bulk-detail-row-' + idx);
+  const mainRow = document.getElementById('bulk-row-' + idx);
+  if (!detailRow) return;
+  const isHidden = detailRow.style.display === 'none';
+  detailRow.style.display = isHidden ? 'table-row' : 'none';
+  if (mainRow) {
+    if (isHidden) mainRow.classList.add('is-expanded');
+    else mainRow.classList.remove('is-expanded');
+  }
+}
+
 function renderBulkTable() {
   const tbody = document.getElementById('bulk_table_body');
   if (!tbody) return;
   if (!window.bulkItems || window.bulkItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">Brak pojazdów do wyświetlenia.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Brak pojazdów do wyświetlenia.</td></tr>';
     return;
   }
 
   let totalKmAll = 0;
   let totalWithFuel = 0;
-
   let totalAnomalies = 0;
 
   tbody.innerHTML = window.bulkItems.map((item, idx) => {
@@ -1658,11 +1808,11 @@ function renderBulkTable() {
       : '<span class="bulk-badge bulk-badge--orange" title="Brak wcześniejszej ewidencji – wpisz ręcznie jeśli znasz licznik">nowy</span>';
 
     const anomBadge = hasAnomalies
-      ? '<span class="bulk-badge" style="background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.4);margin-left:4px" title="' + escapeHtml(item.anomalies.map(a => a.reason).join('\n')) + '">⚠️ BŁĄD GPS (' + item.anomalies.length + ')</span>'
+      ? '<span class="bulk-badge" style="background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.4);margin-left:4px" title="Kliknij wiersz, aby zobaczyć ' + item.anomalies.length + ' problematycznych dni">⚠️ BŁĄD GPS (' + item.anomalies.length + ')</span>'
       : '';
 
     const anomAlert = hasAnomalies
-      ? '<div style="font-size:0.72rem;color:#fca5a5;margin-top:3px;line-height:1.2">⚠️ ' + escapeHtml(item.anomalies[0].reason) + '</div>'
+      ? '<div style="font-size:0.72rem;color:#fca5a5;margin-top:3px;line-height:1.2">⚠️ ' + escapeHtml(item.anomalies[0].reason) + ' <span style="text-decoration:underline;color:#93c5fd;margin-left:4px;cursor:pointer">(zobacz dni ▾)</span></div>'
       : '';
 
     const refuelText = (item.refuelDates || []).join(', ');
@@ -1670,8 +1820,54 @@ function renderBulkTable() {
       ? '<span class="bulk-badge bulk-badge--blue" style="margin-left:4px">' + item.refuelDates.length + 'x</span>'
       : '';
 
-    return '<tr>' +
-      '<td style="color:var(--muted);font-weight:600">' + (idx + 1) + '</td>' +
+    let detailsHtml = '';
+    if (hasAnomalies) {
+      detailsHtml = '<div class="bulk-anom-box">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(239,68,68,0.25);padding-bottom:8px;flex-wrap:wrap;gap:8px">' +
+          '<div style="font-weight:700;color:#f87171;font-size:0.86rem;display:flex;align-items:center;gap:6px">' +
+            '<span>⚠️</span>' +
+            '<span>Wykryte rozbieżności GPS dla pojazdu ' + escapeHtml(item.plate) + ' — dni z problemem: ' + item.anomalies.length + '</span>' +
+          '</div>' +
+          '<span style="font-size:0.74rem;color:var(--muted)">Nadajnik GPS zarejestrował wyjazd lub ruch, ale zapisał dystans bliski 0 km (np. 0.05 km)</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:8px">' +
+          item.anomalies.map(a => {
+            const timeDesc = a.driveDurationFormatted ? ('Czas: ' + escapeHtml(a.driveDurationFormatted)) : (a.driveTimeMinutes > 0 ? ('Czas: ~' + a.driveTimeMinutes + ' min') : '');
+            const speedDesc = a.maxSpeed > 0 ? ('Max: ' + a.maxSpeed + ' km/h') : '';
+            const routeDesc = (a.fromCity && a.toCity) ? (escapeHtml(a.fromCity) + ' ➔ ' + escapeHtml(a.toCity)) : 'Ruch lokalny';
+            const metaInfo = [timeDesc, speedDesc].filter(Boolean).join(' · ');
+            return '<div class="bulk-anom-item">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+                '<span style="font-weight:700;color:#fca5a5;font-size:0.85rem">📅 Dzień: ' + escapeHtml(a.date) + '</span>' +
+                '<span class="bulk-badge" style="background:rgba(239,68,68,0.25);color:#fca5a5;border:1px solid rgba(239,68,68,0.4)">GPS: ' + Number(a.reportedKm || 0).toFixed(2) + ' km</span>' +
+              '</div>' +
+              '<div style="font-size:0.78rem;color:#e2e8f0;margin-bottom:4px">' +
+                '<strong>Trasa:</strong> ' + routeDesc + (metaInfo ? (' (' + metaInfo + ')') : '') +
+              '</div>' +
+              '<div style="font-size:0.74rem;color:#fca5a5;line-height:1.3">' +
+                escapeHtml(a.reason) +
+              '</div>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+      '</div>';
+    } else {
+      detailsHtml = '<div class="bulk-ok-box">' +
+        '<span style="font-size:1.2rem">✅</span>' +
+        '<div>' +
+          '<strong>Pojazd ' + escapeHtml(item.plate) + ': Brak rozbieżności GPS w wybranym okresie.</strong>' +
+          '<div style="font-size:0.75rem;color:#86efac;opacity:0.9;margin-top:2px">Wszystkie zarejestrowane trasy i dzienne przebiegi (' + Number(item.totalKm || 0).toFixed(1) + ' km) są prawidłowe i spójne z raportem GPS. Brak podejrzanych dni z zerowym przebiegiem.</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    return '<tr class="bulk-row" id="bulk-row-' + idx + '" onclick="onBulkRowClick(event, ' + idx + ')" title="Kliknij wiersz, aby rozwinąć/zwinąć szczegóły dni i rozbieżności">' +
+      '<td style="color:var(--muted);font-weight:600">' +
+        '<div style="display:flex;align-items:center;gap:3px">' +
+          '<span class="bulk-chevron" id="bulk-chevron-' + idx + '">▸</span>' +
+          '<span>' + (idx + 1) + '</span>' +
+        '</div>' +
+      '</td>' +
       '<td>' +
         '<div style="display:flex;align-items:center;gap:4px">' +
           '<div style="font-weight:700;letter-spacing:0.04em;font-size:0.95rem;color:var(--primary-strong)">' + escapeHtml(item.plate) + '</div>' +
@@ -1709,6 +1905,9 @@ function renderBulkTable() {
       '<td style="text-align:center">' +
         '<button class="btn btn--plain btn--icon" title="Usuń ten pojazd z paczki" onclick="removeBulkItem(' + idx + ')" style="color:var(--muted)"><svg class="i" style="width:14px;height:14px"><use href="#i-trash"/></svg></button>' +
       '</td>' +
+    '</tr>' +
+    '<tr id="bulk-detail-row-' + idx + '" class="bulk-detail-row" style="display:none">' +
+      '<td colspan="10">' + detailsHtml + '</td>' +
     '</tr>';
   }).join('');
 
@@ -1770,6 +1969,7 @@ async function downloadSingleBulkItem(idx) {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) throw new Error('Brak aktywnej sesji użytkownika');
 
+    showPremiumGenModal('Generowanie Ewidencji: ' + it.plate, 'Weryfikacja licznika i tworzenie arkusza Excel...');
     const resp = await fetch('/api/bulk/generate-single', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + session.access_token },
@@ -1797,6 +1997,7 @@ async function downloadSingleBulkItem(idx) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
+    completePremiumGenModal('Plik dla ' + it.plate + ' pobrany!');
     if (btn) {
       btn.innerHTML = '<span style="color:#4ade80;font-weight:600">✓ Pobrano</span>';
       setTimeout(() => {
@@ -1805,6 +2006,7 @@ async function downloadSingleBulkItem(idx) {
     }
     if (typeof loadHistory === 'function') loadHistory();
   } catch (err) {
+    hidePremiumGenModal();
     alert('Błąd pobierania pliku dla ' + it.plate + ': ' + err.message);
     if (btn) {
       btn.disabled = false;
@@ -1854,6 +2056,7 @@ async function runBulkGenerate() {
     fd.append('default_purpose', document.getElementById('bulk_default_purpose').value);
     fd.append('default_dysponent', document.getElementById('bulk_default_dysponent').value);
 
+    showPremiumGenModal('Generowanie Paczki Floty (' + window.bulkItems.length + ' aut)', 'Przetwarzanie tras GPS i pakowanie do ZIP...');
     const res = await api('/api/bulk/generate', {
       method: 'POST',
       body: fd
@@ -1887,6 +2090,7 @@ async function runBulkGenerate() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+    completePremiumGenModal('Paczka ZIP pomyślnie utworzona!');
 
     const genCount = res.headers.get('x-generated-count') || window.bulkItems.length;
     const errCount = parseInt(res.headers.get('x-error-count') || '0', 10);
@@ -1897,6 +2101,7 @@ async function runBulkGenerate() {
     }
     loadHistory();
   } catch (err) {
+    hidePremiumGenModal();
     alert('Błąd generowania pakietowego: ' + err.message);
   } finally {
     btn.disabled = false;
@@ -1918,5 +2123,59 @@ async function runBulkGenerate() {
     <div class="modal-body" id="xl-body"></div>
   </div>
 </div>
+
+<!-- PREMIALNY MODAL GENEROWANIA EXCEL -->
+<div id="premium-gen-modal" class="premium-gen-backdrop" style="display:none" aria-hidden="true">
+  <div class="premium-gen-card" role="dialog" aria-modal="true" aria-labelledby="prem-gen-title">
+    <div class="prem-ambient-glow"></div>
+    <div class="prem-icon-stage">
+      <div class="prem-ring-outer"></div>
+      <div class="prem-ring-inner"></div>
+      <div class="prem-excel-badge">
+        <svg viewBox="0 0 48 48" style="width:52px;height:52px" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="48" height="48" rx="12" fill="url(#prem-excel-grad)" />
+          <path d="M13 14H35C36.1 14 37 14.9 37 16V32C37 33.1 36.1 34 35 34H13C11.9 34 11 33.1 11 32V16C11 14.9 11.9 14 13 14Z" stroke="white" stroke-width="2" stroke-opacity="0.35"/>
+          <path d="M25 14V34M11 24H37M11 19H37M11 29H37" stroke="white" stroke-width="1.5" stroke-opacity="0.25"/>
+          <path d="M15 17L27 31M27 17L15 31" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="prem-excel-grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#10b981"/>
+              <stop offset="1" stop-color="#047857"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="prem-sparkle s1">✦</div>
+      <div class="prem-sparkle s2">✦</div>
+      <div class="prem-sparkle s3">✦</div>
+    </div>
+    <h3 id="prem-gen-title" class="prem-gen-title">Generowanie Ewidencji Excel</h3>
+    <p id="prem-gen-sub" class="prem-gen-sub">Inicjalizacja i przetwarzanie danych trasy...</p>
+    <div class="prem-progress-wrap">
+      <div class="prem-progress-bar" id="prem-pbar" style="width:12%">
+        <div class="prem-shimmer"></div>
+      </div>
+    </div>
+    <div class="prem-steps" id="prem-steps">
+      <div class="prem-step-chip active" id="prem-step-1">
+        <span class="step-dot"></span>
+        <span>Trasy GPS</span>
+      </div>
+      <div class="prem-step-chip" id="prem-step-2">
+        <span class="step-dot"></span>
+        <span>Kilometry & Anomalie</span>
+      </div>
+      <div class="prem-step-chip" id="prem-step-3">
+        <span class="step-dot"></span>
+        <span>Format A4</span>
+      </div>
+      <div class="prem-step-chip" id="prem-step-4">
+        <span class="step-dot"></span>
+        <span>Gotowy plik</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
