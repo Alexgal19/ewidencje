@@ -763,6 +763,12 @@ h1{font-size:var(--fs-3xl);color:var(--white);letter-spacing:-.01em}
         </div>
 
         <div class="card-body" style="padding:0">
+          <div id="bulk_anomalies_banner" style="display:none;background:rgba(239,68,68,0.12);border-top:1px solid rgba(239,68,68,0.3);border-bottom:1px solid rgba(239,68,68,0.3);padding:10px 16px">
+            <div style="font-weight:700;color:#f87171;font-size:0.85rem;display:flex;align-items:center;gap:6px">
+              <span>⚠️</span>
+              <span class="bulk-anom-text">Wykryto rozbieżności GPS!</span>
+            </div>
+          </div>
           <div style="overflow-x:auto;max-height:550px">
             <table class="bulk-table">
               <thead>
@@ -1409,6 +1415,16 @@ async function generate(){
     const {data:{session}}=await supabaseClient.auth.getSession();
     const resp=await fetch('/generate',{method:'POST',headers:{'Authorization':'Bearer '+session.access_token},body:form});
     stopProgress();
+    const rawAnomalies = resp.headers.get('x-gps-anomalies');
+    let anomMsg = '';
+    if (rawAnomalies) {
+        try {
+            const anomList = JSON.parse(decodeURIComponent(rawAnomalies));
+            if (anomList && anomList.length) {
+                anomMsg = ' ⚠️ Wykryto błąd GPS: ' + anomList[0].reason;
+            }
+        } catch(e) {}
+    }
     if(!resp.ok){const data=await resp.json().catch(()=>({}));throw new Error(data.error||'B\u0142\u0105d serwera ('+resp.status+')')}
     const blob=await resp.blob();
     const cd=resp.headers.get('Content-Disposition')||'';
@@ -1417,7 +1433,7 @@ async function generate(){
     let name=m?m[2]:'ewidencja.xlsx';
     if(mu){try{name=decodeURIComponent(mu[1])}catch(e){}}
     const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-    showStatus('ok','\u2713','Plik "'+name+'" pobrany i zapisany w historii!');
+    showStatus('ok','\u2713','Plik "'+name+'" pobrany i zapisany w historii!' + anomMsg);
     loadHistory();
   }catch(err){stopProgress();showStatus('err','\u2717','B\u0142\u0105d: '+err.message)}
   finally{btn.disabled=false;spin.style.display='none';btxt.textContent='Generuj ewidencj\u0119 Excel'}
@@ -1627,13 +1643,26 @@ function renderBulkTable() {
   let totalKmAll = 0;
   let totalWithFuel = 0;
 
+  let totalAnomalies = 0;
+
   tbody.innerHTML = window.bulkItems.map((item, idx) => {
     totalKmAll += Number(item.totalKm || 0);
     if (item.refuelDates && item.refuelDates.length > 0) totalWithFuel++;
 
+    const hasAnomalies = item.anomalies && item.anomalies.length > 0;
+    if (hasAnomalies) totalAnomalies += item.anomalies.length;
+
     const odoBadge = item.hasPreviousOdo
       ? '<span class="bulk-badge bulk-badge--green" title="Wartość pobrana z poprzedniej ewidencji tego auta">z bazy</span>'
       : '<span class="bulk-badge bulk-badge--orange" title="Brak wcześniejszej ewidencji – wpisz ręcznie jeśli znasz licznik">nowy</span>';
+
+    const anomBadge = hasAnomalies
+      ? '<span class="bulk-badge" style="background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.4);margin-left:4px" title="' + escapeHtml(item.anomalies.map(a => a.reason).join('\n')) + '">⚠️ BŁĄD GPS (' + item.anomalies.length + ')</span>'
+      : '';
+
+    const anomAlert = hasAnomalies
+      ? '<div style="font-size:0.72rem;color:#fca5a5;margin-top:3px;line-height:1.2">⚠️ ' + escapeHtml(item.anomalies[0].reason) + '</div>'
+      : '';
 
     const refuelText = (item.refuelDates || []).join(', ');
     const refuelCountBadge = item.refuelDates && item.refuelDates.length > 0
@@ -1643,8 +1672,12 @@ function renderBulkTable() {
     return '<tr>' +
       '<td style="color:var(--muted);font-weight:600">' + (idx + 1) + '</td>' +
       '<td>' +
-        '<div style="font-weight:700;letter-spacing:0.04em;font-size:0.95rem;color:var(--primary-strong)">' + escapeHtml(item.plate) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:4px">' +
+          '<div style="font-weight:700;letter-spacing:0.04em;font-size:0.95rem;color:var(--primary-strong)">' + escapeHtml(item.plate) + '</div>' +
+          anomBadge +
+        '</div>' +
         '<div style="font-size:0.75rem;color:var(--muted)">' + escapeHtml(item.carModel || item.fileName) + '</div>' +
+        anomAlert +
       '</td>' +
       '<td>' +
         '<input type="text" list="driver_list" style="width:150px" value="' + escapeHtml(item.driverName || '') + '" placeholder="Imię kierowcy" onchange="window.bulkItems[' + idx + '].driverName=this.value">' +
@@ -1673,7 +1706,19 @@ function renderBulkTable() {
   }).join('');
 
   document.getElementById('bulk_summary_sub').textContent =
-    'Łącznie: ' + window.bulkItems.length + ' pojazdów · ' + totalKmAll.toFixed(0) + ' km · ' + totalWithFuel + ' pojazdów z tankowaniami';
+    'Łącznie: ' + window.bulkItems.length + ' pojazdów · ' + totalKmAll.toFixed(0) + ' km · ' + totalWithFuel + ' pojazdów z tankowaniami' +
+    (totalAnomalies > 0 ? (' · ⚠️ ' + totalAnomalies + ' anomalii GPS') : '');
+
+  const anomBanner = document.getElementById('bulk_anomalies_banner');
+  if (anomBanner) {
+    if (totalAnomalies > 0) {
+      anomBanner.style.display = 'block';
+      anomBanner.querySelector('.bulk-anom-text').textContent =
+        'Wykryto rozbieżności GPS w ' + totalAnomalies + ' pozycjach! Nadajnik Cartrack zarejestrował wyjazdy między miastami lub długą jazdę, ale zapisał dystans bliski 0 km (np. 0.05 km). Trasy zostały zachowane w ewidencjach z ostrzeżeniem w uwagach.';
+    } else {
+      anomBanner.style.display = 'none';
+    }
+  }
 }
 
 function removeBulkItem(idx) {

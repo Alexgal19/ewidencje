@@ -405,7 +405,8 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
         const isFree    = isWeekend || holidays.has(isoDay);
 
         const data  = agg.get(isoDay);
-        const km    = (data && data.km >= 1.0) ? Math.round(data.km * 100) / 100 : null;
+        const isAnomaly = Boolean(data && data.isAnomaly);
+        const km    = (data && (data.km >= 1.0 || isAnomaly)) ? Math.round(data.km * 100) / 100 : null;
 
         let route = '';
         if (data && km) {
@@ -425,7 +426,11 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
         }
 
         const cel   = (km ? (tripPurpose || 'dowóz/odbiór pracowników') : '');
-        const uwagi = mappedRefuelSet.has(isoDay) ? 'tankowanie' : '';
+        let uwagi = mappedRefuelSet.has(isoDay) ? 'tankowanie' : '';
+        if (isAnomaly) {
+            const anomNote = `⚠️ Błąd GPS (${km ?? 0} km)`;
+            uwagi = uwagi ? `${uwagi} | ${anomNote}` : anomNote;
+        }
 
         if (km) {
             runningOdo += km;
@@ -490,7 +495,10 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
                 }
                 c.alignment = align('center', 'middle', { wrap: true });
             } else if (ci === 8) {
-                if (uwagi) {
+                if (isAnomaly) {
+                    c.font = font('Arial', 8, { bold: true, color: 'DC2626' });
+                    c.fill = fill('FEE2E2');
+                } else if (uwagi) {
                     c.font = font('Arial', 8, { bold: true, color: 'B45309' });
                     c.fill = fill('FFFBEB');
                 } else {
@@ -601,8 +609,8 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
             // Imię i nazwisko osoby kierującej pojazdem
             targetWidth = Math.max(16, Math.min(maxLen + 2, 24));
         } else if (ci === 8) {
-            // Uwagi (np. tankowanie)
-            targetWidth = Math.max(10, Math.min(maxLen + 2, 14));
+            // Uwagi (np. tankowanie, ostrzeżenie o błędzie GPS)
+            targetWidth = Math.max(10, Math.min(maxLen + 2, 24));
         }
 
         ws2.getColumn(ci).width = targetWidth;

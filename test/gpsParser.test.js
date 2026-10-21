@@ -341,5 +341,118 @@ describe('gpsParser', () => {
             );
             assert.strictEqual(result.dayGroups[0].km, 33.3);
         });
+
+        it('detects GPS anomaly when distance is tiny (0.05 km) but car travelled intercity (Żory -> Strumień)', async () => {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('Raport');
+            ws.addRow(['', '', '', '', '', '', '', '', '', '', 'Data: 2026-09-01 - 2026-09-30', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+
+            // Header row with explicit column names
+            const headerVals = [];
+            headerVals[1] = 'Nr rejestracyjny';
+            headerVals[11] = 'Czas - Start';
+            headerVals[13] = 'Lokalizacja - Start';
+            headerVals[17] = 'Czas - Koniec';
+            headerVals[18] = 'Lokalizacja - Koniec';
+            headerVals[22] = 'Czas jazdy';
+            headerVals[24] = 'Dystans';
+            headerVals[25] = 'Prędkość maks.';
+            ws.addRow(headerVals);
+
+            // Trip row: Żory to Strumień (24 min, max speed 90 km/h, distance 0.00)
+            const rowVals = [];
+            rowVals[1] = 'DSW3410A';
+            rowVals[11] = new Date(Date.UTC(2026, 8, 4, 9, 27));
+            rowVals[13] = '32, ulica Harcówka, Żory, Poland';
+            rowVals[17] = new Date(Date.UTC(2026, 8, 4, 9, 51));
+            rowVals[18] = '5, ulica Rzemieślnicza, Strumień, Poland';
+            rowVals[22] = '00:24:14';
+            rowVals[24] = 0.00;
+            rowVals[25] = 90.00;
+            ws.addRow(rowVals);
+
+            // Summary row with total km 0.05
+            const razemVals = [];
+            razemVals[1] = 'Razem';
+            razemVals[22] = '00:26:50';
+            razemVals[24] = 0.05;
+            razemVals[25] = 90.00;
+            ws.addRow(razemVals);
+
+            const buf = await wb.xlsx.writeBuffer();
+            const result = await parseGps(buf, 'DSW3410A.xlsx');
+
+            assert.strictEqual(result.dayGroups.length, 1);
+            const day = result.dayGroups[0];
+            assert.strictEqual(day.km, 0.05);
+            assert.strictEqual(day.isAnomaly, true);
+            assert.ok(result.anomalies.length > 0);
+            assert.match(result.anomalies[0].reason, /Żory.*Strumień/);
+            assert.match(result.anomalies[0].reason, /0.05/);
+
+            // Aggregation should NOT wipe the route or addresses for an anomaly
+            const agg = aggregate(result.dayGroups);
+            const aggDay = agg.get('2026-09-04');
+            assert.ok(aggDay);
+            assert.strictEqual(aggDay.km, 0.05);
+            assert.ok(aggDay.addresses.length >= 2, 'Addresses must be preserved');
+            assert.strictEqual(aggDay.isAnomaly, true);
+        });
+
+        it('does not flag normal parking moves (< 1 km, same city, short time) as anomaly and rolls them over', async () => {
+            const wb = new ExcelJS.Workbook();
+            const ws = wb.addWorksheet('Raport');
+            ws.addRow(['', '', '', '', '', '', '', '', '', '', 'Data: 2026-09-01 - 2026-09-30', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+
+            // Header row
+            const headerVals = [];
+            headerVals[1] = 'Nr rejestracyjny';
+            headerVals[11] = 'Czas - Start';
+            headerVals[13] = 'Lokalizacja - Start';
+            headerVals[18] = 'Lokalizacja - Koniec';
+            headerVals[22] = 'Czas jazdy';
+            headerVals[24] = 'Dystans';
+            headerVals[25] = 'Prędkość maks.';
+            ws.addRow(headerVals);
+
+            // 1. Day 1: normal parking move 0.05 km in Żory (30 seconds, 10 km/h)
+            const row1 = [];
+            row1[1] = 'DSW3410A';
+            row1[11] = new Date(Date.UTC(2026, 8, 1, 10, 0));
+            row1[13] = '32, ulica Harcówka, Żory, Poland';
+            row1[18] = '32, ulica Harcówka, Żory, Poland';
+            row1[22] = '00:00:30';
+            row1[24] = 0.05;
+            row1[25] = 10.00;
+            ws.addRow(row1);
+            const razem1 = [];
+            razem1[1] = 'Razem';
+            razem1[24] = 0.05;
+            ws.addRow(razem1);
+
+            // 2. Day 2: real trip 50 km
+            const row2 = [];
+            row2[1] = 'DSW3410A';
+            row2[11] = new Date(Date.UTC(2026, 8, 2, 8, 0));
+            row2[13] = '32, ulica Harcówka, Żory, Poland';
+            row2[18] = 'ul. Rynek 1, Katowice, Poland';
+            row2[22] = '00:45:00';
+            row2[24] = 50.00;
+            row2[25] = 80.00;
+            ws.addRow(row2);
+            const razem2 = [];
+            razem2[1] = 'Razem';
+            razem2[24] = 50.00;
+            ws.addRow(razem2);
+
+            const buf = await wb.xlsx.writeBuffer();
+            const result = await parseGps(buf, 'DSW3410A.xlsx');
+
+            assert.strictEqual(result.anomalies.length, 0, 'Parking move should not be an anomaly');
+            const agg = aggregate(result.dayGroups);
+            // Day 1 micro-trip should be rolled over into Day 2
+            assert.strictEqual(agg.get('2026-09-01').km, 0);
+            assert.strictEqual(agg.get('2026-09-02').km, 50.05);
+        });
     });
 });

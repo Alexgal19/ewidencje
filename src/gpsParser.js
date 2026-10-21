@@ -62,6 +62,29 @@ function daysInMonth(year, month) {
     return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
+/**
+ * Parse duration value (string "HH:MM:SS", Excel fraction of a day, or seconds) into integer seconds.
+ */
+function parseDurationSeconds(val) {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number') {
+        if (val > 0 && val < 1.0) {
+            return Math.round(val * 86400);
+        }
+        return Math.round(val);
+    }
+    const str = String(val).trim();
+    const parts = str.split(':').map(Number);
+    if (parts.length === 3 && parts.every(n => !isNaN(n))) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    if (parts.length === 2 && parts.every(n => !isNaN(n))) {
+        return parts[0] * 60 + parts[1];
+    }
+    const num = parseFloat(str);
+    return !isNaN(num) ? Math.round(num) : 0;
+}
+
 // ── Polish holidays ───────────────────────────────────────────────────────────
 
 /**
@@ -416,6 +439,8 @@ async function parseGps(buffer, filename) {
     let startAddrCol = 9;
     let endAddrCol   = 12;
     let kmCols       = [16]; // column with km in "Razem" row (other nearby columns are times / speeds)
+    let driveTimeCol = -1;
+    let maxSpeedCol  = -1;
 
     const firstDateRow = rows.find(r => r && r[10] instanceof Date);
     if (firstDateRow) {
@@ -424,15 +449,27 @@ async function parseGps(buffer, filename) {
         startAddrCol = 12;
         endAddrCol   = 17;
         kmCols       = [23]; // km in Razem row, col23 = total distance
+        driveTimeCol = 21;   // Czas jazdy
+        maxSpeedCol  = 24;   // Prędkość maks.
         console.log('[Parser] Detected NEW XLSX format (date@col10, addr@col12/17, km@col23)');
     } else {
         console.log('[Parser] Detected OLD XLS format (date@col8, addr@col9/12, km@col16)');
     }
 
-    // Prefer the real position of the "Dystans" header over the hard-coded layout guess
-    for (let i = 0; i < Math.min(rows.length, 30); i++) {
-        const idx = (rows[i] || []).findIndex(c => typeof c === 'string' && /^dystans$/i.test(c.trim()));
-        if (idx >= 0) { kmCols = [idx]; break; }
+    // Dynamic header scan to discover exact columns for Dystans, Czas jazdy, Prędkość, Adresy
+    for (let i = 0; i < Math.min(rows.length, 35); i++) {
+        const row = rows[i];
+        if (!row || !row.length) continue;
+        for (let c = 0; c < row.length; c++) {
+            const raw = row[c];
+            if (!raw) continue;
+            const str = String(raw).trim().replace(/\s+/g, ' ');
+            if (/^dystans$/i.test(str)) kmCols = [c];
+            else if (/^czas\s*jazdy$/i.test(str)) driveTimeCol = c;
+            else if (/^prędkość\s*maks/i.test(str)) maxSpeedCol = c;
+            else if (/^lokalizacja\s*-\s*start$/i.test(str) && startAddrCol === 9) startAddrCol = c;
+            else if (/^lokalizacja\s*-\s*koniec$/i.test(str) && endAddrCol === 12) endAddrCol = c;
+        }
     }
 
     // ── Scan header rows for metadata ───────────────────────────────────────
@@ -466,6 +503,7 @@ async function parseGps(buffer, filename) {
     }
 
     const dayGroups = [];
+    const anomalies = [];
     let current = [];
 
     console.log(`[Parser] Processing ${rows.length} rows from ${filename}`);
@@ -501,6 +539,29 @@ async function parseGps(buffer, filename) {
                         if (!isNaN(num)) { km = num; break; }
                     }
 
+                    // Driving time and speed
+                    let totalDriveSeconds = 0;
+                    if (driveTimeCol >= 0) {
+                        const sumDrive = parseDurationSeconds(row[driveTimeCol]);
+                        if (sumDrive > 0) {
+                            totalDriveSeconds = sumDrive;
+                        } else {
+                            for (const r of data) {
+                                totalDriveSeconds += parseDurationSeconds(r[driveTimeCol]);
+                            }
+                        }
+                    }
+
+                    let maxSpeed = 0;
+                    if (maxSpeedCol >= 0) {
+                        const sumSpeed = parseFloat(String(row[maxSpeedCol] ?? '').replace(',', '.'));
+                        if (!isNaN(sumSpeed) && sumSpeed > 0) maxSpeed = sumSpeed;
+                        for (const r of data) {
+                            const sp = parseFloat(String(r[maxSpeedCol] ?? '').replace(',', '.'));
+                            if (!isNaN(sp) && sp > maxSpeed) maxSpeed = sp;
+                        }
+                    }
+
                     // Collect addresses from trip rows
                     const addresses = [];
                     for (const r of data) {
@@ -513,7 +574,85 @@ async function parseGps(buffer, filename) {
                     const firstStart = data[0][startAddrCol] != null ? String(data[0][startAddrCol]) : '';
                     const lastEnd    = data[data.length - 1][endAddrCol] != null ? String(data[data.length - 1][endAddrCol]) : '';
 
-                    dayGroups.push({ date: dateISO, km, addresses, firstStart, lastEnd });
+                    // Check for city changes
+                    let fromCity = await extractCity(firstStart);
+                    let toCity   = await extractCity(lastEnd);
+                    let intercity = Boolean(fromCity && toCity && fromCity.toLowerCase() !== toCity.toLowerCase());
+
+                    if (!intercity) {
+                        for (const r of data) {
+                            const s = r[startAddrCol] != null ? String(r[startAddrCol]) : '';
+                            const e = r[endAddrCol] != null ? String(r[endAddrCol]) : '';
+                            if (s && e) {
+                                const sc = await extractCity(s);
+                                const ec = await extractCity(e);
+                                if (sc && ec && sc.toLowerCase() !== ec.toLowerCase()) {
+                                    intercity = true;
+                                    if (!fromCity) fromCity = sc;
+                                    toCity = ec;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // Discrepancy criteria:
+                    // Reported km is tiny (< 1.0 km, e.g. 0.05 or 0.00), BUT:
+                    // 1) Car moved between different cities (e.g. Żory ➔ Strumień), OR
+                    // 2) Driving time was substantial (>= 5 minutes, i.e. 300s), OR
+                    // 3) Speed was substantial (>= 40 km/h)
+                    let isAnomaly = false;
+                    let anomaly = null;
+                    if (km < 1.0) {
+                        const driveMins = Math.round(totalDriveSeconds / 60);
+                        if (intercity) {
+                            isAnomaly = true;
+                            anomaly = {
+                                date: dateISO,
+                                plate: plate || '',
+                                reportedKm: km,
+                                fromCity,
+                                toCity,
+                                driveTimeMinutes: driveMins,
+                                maxSpeed: Math.round(maxSpeed),
+                                reason: `Przejazd między miastami: ${fromCity} ➔ ${toCity}` +
+                                    (driveMins > 0 ? ` (czas: ~${driveMins} min` : '') +
+                                    (maxSpeed > 0 ? `, prędkość: ${Math.round(maxSpeed)} km/h` : '') +
+                                    (driveMins > 0 ? ')' : '') +
+                                    `, a GPS zapisał zaledwie ${km} km! Prawdopodobna awaria licznika GPS.`,
+                            };
+                        } else if (totalDriveSeconds >= 300 || maxSpeed >= 40) {
+                            isAnomaly = true;
+                            anomaly = {
+                                date: dateISO,
+                                plate: plate || '',
+                                reportedKm: km,
+                                fromCity: fromCity || '',
+                                toCity: toCity || fromCity || '',
+                                driveTimeMinutes: driveMins,
+                                maxSpeed: Math.round(maxSpeed),
+                                reason: `Jazda przez ~${driveMins} min` +
+                                    (maxSpeed > 0 ? ` z prędkością do ${Math.round(maxSpeed)} km/h` : '') +
+                                    `, a GPS zapisał tylko ${km} km! Prawdopodobna awaria licznika GPS.`,
+                            };
+                        }
+                    }
+
+                    if (isAnomaly && anomaly) {
+                        anomalies.push(anomaly);
+                    }
+
+                    dayGroups.push({
+                        date: dateISO,
+                        km,
+                        addresses,
+                        firstStart,
+                        lastEnd,
+                        totalDriveSeconds,
+                        maxSpeed,
+                        isAnomaly,
+                        anomaly,
+                    });
                 }
             }
             current = [];
@@ -535,7 +674,7 @@ async function parseGps(buffer, filename) {
         console.log(`[Parser] Successfully extracted ${dayGroups.length} days of data.`);
     }
 
-    return { plate, carModel, dateFrom, dateTo, dayGroups };
+    return { plate, carModel, dateFrom, dateTo, dayGroups, anomalies };
 }
 
 // ── Aggregation ───────────────────────────────────────────────────────────────
@@ -565,6 +704,12 @@ function rollOverSmallTrips(agg) {
         }
 
         if (entry.km > 0 && entry.km < MIN_DAILY_KM) {
+            // Jeśli dzień został oznaczony jako anomalia GPS (wyjazd do innego miasta, długi czas jazdy lub duża prędkość),
+            // NIE kasujemy trasy ani adresów! Auto faktycznie jechało, więc ewidencja musi pokazywać trasę z adnotacją w Uwagach.
+            if (entry.isAnomaly) {
+                continue;
+            }
+
             if (i < dates.length - 1) {
                 carry = entry.km;
             } else {
@@ -594,7 +739,7 @@ function aggregate(dayGroups) {
         const t = getPreviousWorkingDay(g.date);
 
         if (!agg.has(t)) {
-            agg.set(t, { km: 0, addresses: [], dailyAddresses: [], firstLoc: null, lastLoc: null });
+            agg.set(t, { km: 0, addresses: [], dailyAddresses: [], firstLoc: null, lastLoc: null, isAnomaly: false, anomaly: null });
         }
         const entry = agg.get(t);
         entry.km += g.km;
@@ -609,6 +754,10 @@ function aggregate(dayGroups) {
         }
         if (g.lastEnd) {
             entry.lastLoc = g.lastEnd;
+        }
+        if (g.isAnomaly) {
+            entry.isAnomaly = true;
+            entry.anomaly = g.anomaly;
         }
     }
 
@@ -628,7 +777,7 @@ function aggregateActual(dayGroups) {
         const d = g.date;
 
         if (!agg.has(d)) {
-            agg.set(d, { km: 0, addresses: [], dailyAddresses: [], firstLoc: null, lastLoc: null });
+            agg.set(d, { km: 0, addresses: [], dailyAddresses: [], firstLoc: null, lastLoc: null, isAnomaly: false, anomaly: null });
         }
         const entry = agg.get(d);
         entry.km += g.km;
@@ -643,6 +792,10 @@ function aggregateActual(dayGroups) {
         }
         if (g.lastEnd) {
             entry.lastLoc = g.lastEnd;
+        }
+        if (g.isAnomaly) {
+            entry.isAnomaly = true;
+            entry.anomaly = g.anomaly;
         }
     }
 

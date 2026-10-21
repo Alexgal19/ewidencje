@@ -113,7 +113,7 @@ app.post('/generate',
             const odometer       = parseInt(odoRaw.replace(/[\s,]/g, ''), 10) || 0;
             const targetOdometer = parseInt(targetOdoRaw.replace(/[\s,]/g, ''), 10) || 0;
 
-            let { plate, carModel, dateFrom, dateTo, dayGroups } = await parseGps(buffer, filename);
+            let { plate, carModel, dateFrom, dateTo, dayGroups, anomalies = [] } = await parseGps(buffer, filename);
 
             if (!dayGroups || !dayGroups.length) {
                 return res.status(400).json({ error: 'Nie znaleziono danych GPS w pliku.' });
@@ -215,7 +215,10 @@ app.post('/generate',
             res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             const asciiName = outName.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l').replace(/[^ -~]/g, '_');
             res.setHeader('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(outName)}`);
-            res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+            if (anomalies && anomalies.length > 0) {
+                res.setHeader('X-GPS-Anomalies', encodeURIComponent(JSON.stringify(anomalies)));
+            }
+            res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, X-GPS-Anomalies');
             res.send(xlsBuf);
 
         } catch (err) {

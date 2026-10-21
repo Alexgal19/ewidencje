@@ -103,6 +103,39 @@ describe('generateExcel', () => {
         const row5 = dayRow(ws2, 5);
         assert.ok(row5.height >= 22, 'Row 5 height should be >= 22, got ' + row5.height);
     });
+
+    it('marks GPS anomaly in Uwagi with warning and red highlight', async () => {
+        const anomalyAgg = new Map([
+            ['2026-09-04', {
+                km: 0.05,
+                addresses: [
+                    '32, ulica Harcówka, Żory, Poland',
+                    '5, ulica Rzemieślnicza, Strumień, Poland',
+                ],
+                dailyAddresses: [],
+                firstLoc: null,
+                lastLoc: null,
+                isAnomaly: true,
+                anomaly: {
+                    date: '2026-09-04',
+                    reportedKm: 0.05,
+                    reason: 'Przejazd między miastami: Żory ➔ Strumień'
+                }
+            }],
+        ]);
+
+        const buf = await generateExcel(
+            'DSW3410A', 'Renault Trafic', '2026-09-01', '2026-09-30',
+            'Jan Kowalski', 'Smart Work', 10000, new Set(),
+            anomalyAgg, 'dowóz/odbiór pracowników'
+        );
+        const wb = await load(buf);
+        const ws2 = wb.worksheets[1];
+        const day4Cell = dayRow(ws2, 4).getCell(8);
+        assert.match(String(day4Cell.value), /⚠️ Błąd GPS \(0\.05 km\)/);
+        assert.strictEqual(day4Cell.font.color.argb, 'FFDC2626');
+        assert.strictEqual(day4Cell.fill.fgColor.argb, 'FFFEE2E2');
+    });
 });
 
 describe('xlsReadRows', () => {

@@ -95,7 +95,7 @@ async function handleBulkAnalyze(req, res) {
             const file = req.files.gps_files[i];
             try {
                 const parsed = await parseGps(file.buffer, file.originalname);
-                const { plate: rawPlate, carModel: rawModel, dateFrom, dateTo, dayGroups } = parsed;
+                const { plate: rawPlate, carModel: rawModel, dateFrom, dateTo, dayGroups, anomalies = [] } = parsed;
 
                 const fallbackPlate = path.basename(file.originalname, path.extname(file.originalname));
                 const plate = cleanPlate(rawPlate || fallbackPlate);
@@ -155,6 +155,7 @@ async function handleBulkAnalyze(req, res) {
                     targetOdometer: '',
                     adjustMileage: false,
                     refuelDates,
+                    anomalies,
                     outName: buildOutName(plate, year, month),
                     status: 'ok',
                     error: null,
@@ -177,6 +178,7 @@ async function handleBulkAnalyze(req, res) {
                     targetOdometer: '',
                     adjustMileage: false,
                     refuelDates: [],
+                    anomalies: [],
                     outName: `${fallbackPlate}.xlsx`,
                     status: 'error',
                     error: err.message || String(err),
@@ -228,6 +230,7 @@ async function handleBulkGenerate(req, res) {
         const archive = createZipArchive({ zlib: { level: 9 } });
 
         const errors = [];
+        const allAnomalies = [];
         let generatedCount = 0;
 
         // Fetch user drivers for driver_id matching (best effort)
@@ -242,7 +245,10 @@ async function handleBulkGenerate(req, res) {
 
             try {
                 const parsed = await parseGps(file.buffer, file.originalname);
-                const { plate: rawPlate, carModel: rawModel, dateFrom, dateTo, dayGroups } = parsed;
+                const { plate: rawPlate, carModel: rawModel, dateFrom, dateTo, dayGroups, anomalies = [] } = parsed;
+                if (anomalies.length > 0) {
+                    allAnomalies.push(...anomalies);
+                }
 
                 if (!dayGroups || !dayGroups.length) {
                     throw new Error('Brak danych o trasach w pliku GPS');
@@ -351,6 +357,23 @@ async function handleBulkGenerate(req, res) {
                 console.error(`[Bulk] Error generating item ${i} (${file.originalname}):`, itemErr);
                 errors.push({ file: file.originalname, error: itemErr.message || String(itemErr) });
             }
+        }
+
+        if (allAnomalies.length > 0) {
+            let anomReport = '======================================================================\r\n';
+            anomReport += 'RAPORT ROZBIEŻNOŚCI I ANOMALII GPS (WYKRYTE BŁĘDY CARTRACK)\r\n';
+            anomReport += '======================================================================\r\n\r\n';
+            anomReport += 'Wykryto następujące przypadki, w których pojazd odbył realny przejazd\r\n';
+            anomReport += '(przejazd między miastami, długi czas jazdy lub wysoka prędkość),\r\n';
+            anomReport += 'ale urządzenie GPS zapisało dystans bliski 0 km (np. 0.05 km):\r\n\r\n';
+            for (const a of allAnomalies) {
+                anomReport += `• Pojazd: ${a.plate || 'Nieznany'} | Data: ${a.date}\r\n`;
+                anomReport += `  Przebieg w GPS: ${a.reportedKm} km\r\n`;
+                anomReport += `  Opis anomalii: ${a.reason}\r\n\r\n`;
+            }
+            anomReport += 'Zalecenie: Skoryguj stany liczników fizycznych na desce rozdzielczej lub zgłoś usterkę do Cartrack.\r\n';
+            anomReport += '======================================================================\r\n';
+            archive.append(Buffer.from(anomReport, 'utf8'), { name: '_RAPORT_ANOMALII_GPS.txt' });
         }
 
         if (errors.length > 0) {
