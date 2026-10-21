@@ -54,13 +54,13 @@ app.post('/api/ewidencje/:id/photos', requireAuth, upload.array('photos', 20), a
 
 
 // ── Moduł Floty Masowej (wyłącznie dla o.holiadynets@swl.com.pl) ───────────────
-const bulkUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024, files: 70 } });
+const bulkUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 350 } });
 
 app.post('/api/bulk/analyze',
     requireAuth,
     requireBulkAdmin,
     bulkUpload.fields([
-        { name: 'gps_files', maxCount: 60 },
+        { name: 'gps_files', maxCount: 300 },
         { name: 'fuel_file', maxCount: 1 }
     ]),
     handleBulkAnalyze
@@ -70,7 +70,7 @@ app.post('/api/bulk/generate',
     requireAuth,
     requireBulkAdmin,
     bulkUpload.fields([
-        { name: 'gps_files', maxCount: 60 },
+        { name: 'gps_files', maxCount: 300 },
         { name: 'fuel_file', maxCount: 1 }
     ]),
     handleBulkGenerate
