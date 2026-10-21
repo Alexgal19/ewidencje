@@ -62,6 +62,47 @@ describe('generateExcel', () => {
         assert.strictEqual(dayRow(ws, 29).getCell(1).value, 29);
         assert.strictEqual(ws.getRow(7 + 29).getCell(1).value, 'Koniec okresu rozliczeniowego');
     });
+
+    it('sets compact column widths and adapts row height for long routes', async () => {
+        const longRouteAgg = new Map([
+            ['2025-12-05', {
+                km: 150,
+                addresses: [
+                    'ul. Bystrzycka 7a, 58-100 Świdnica',
+                    'ul. Wrocławska 10, 58-300 Wałbrzych',
+                    'ul. Główna 1, 58-200 Dzierżoniów',
+                    'ul. Legnicka 5, 59-220 Legnica',
+                    'ul. Strzegomska 12, 58-100 Świdnica',
+                    'ul. Bystrzycka 7a, 58-100 Świdnica',
+                ],
+                dailyAddresses: [],
+                firstLoc: null,
+                lastLoc: null,
+            }],
+        ]);
+
+        const buf = await generateExcel(
+            'DSW1234E', 'Opel Astra', '2025-12-01', '2025-12-31',
+            'Khyzmyi Mykola', 'Kowalski Jan', 10000, new Set(),
+            longRouteAgg, 'dowóz/odbiór pracowników'
+        );
+        const wb = await load(buf);
+        const ws1 = wb.worksheets[0];
+        const ws2 = wb.worksheets[1];
+
+        // Sheet 1 pageSetup check
+        assert.strictEqual(ws1.pageSetup.orientation, 'portrait');
+
+        // Column widths should NOT be bloated by merged cells (A, B shouldn't be ~31)
+        assert.ok(ws2.getColumn(1).width <= 7, 'Col A width should be <= 7, got ' + ws2.getColumn(1).width);
+        assert.ok(ws2.getColumn(2).width <= 7, 'Col B width should be <= 7, got ' + ws2.getColumn(2).width);
+        assert.ok(ws2.getColumn(4).width <= 28, 'Col D width should be <= 28, got ' + ws2.getColumn(4).width);
+        assert.ok(ws2.getColumn(7).width <= 25, 'Col G width should be <= 25, got ' + ws2.getColumn(7).width);
+
+        // Long route row height should expand and NOT be capped at 75 pt
+        const row5 = dayRow(ws2, 5);
+        assert.ok(row5.height >= 22, 'Row 5 height should be >= 22, got ' + row5.height);
+    });
 });
 
 describe('xlsReadRows', () => {

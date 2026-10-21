@@ -111,6 +111,20 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     // ── Tytułowa ──────────────────────────────────────────────────────────────
     const ws = wb.addWorksheet('Tytułowa');
     ws.views = [{ showGridLines: false }];
+    ws.pageSetup.orientation = 'portrait';
+    ws.pageSetup.paperSize   = 9; // A4
+    ws.pageSetup.fitToPage   = true;
+    ws.pageSetup.fitToWidth  = 1;
+    ws.pageSetup.fitToHeight = 0;
+    ws.pageSetup.horizontalCentered = true;
+    ws.pageSetup.margins = {
+        left: 0.5,
+        right: 0.5,
+        top: 0.75,
+        bottom: 0.75,
+        header: 0.3,
+        footer: 0.3,
+    };
 
     const tytCols = [
         { key: 'A', width: 4 },
@@ -318,14 +332,14 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     ws2.views = [{ state: 'frozen', xSplit: 0, ySplit: 6, showGridLines: false }];
 
     const rozCols = [
-        { key: 'A', width: 6 },
-        { key: 'B', width: 6 },
-        { key: 'C', width: 14 },
-        { key: 'D', width: 38 },
-        { key: 'E', width: 55 },
-        { key: 'F', width: 14 },
-        { key: 'G', width: 26 },
-        { key: 'H', width: 16 },
+        { key: 'A', width: 5.5 },
+        { key: 'B', width: 5.5 },
+        { key: 'C', width: 12.5 },
+        { key: 'D', width: 24 },
+        { key: 'E', width: 48 },
+        { key: 'F', width: 11 },
+        { key: 'G', width: 18 },
+        { key: 'H', width: 12 },
     ];
     for (const { key, width } of rozCols) {
         ws2.getColumn(key).width = width;
@@ -347,11 +361,11 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     const HDRS = [
         'Nr\nkolejny\nwpisu',
         '',
-        'Data wyjazdu',
-        'Cel wyjazdu',
-        'Opis trasy wyjazdu (skąd–dokąd)',
+        'Data\nwyjazdu',
+        'Cel\nwyjazdu',
+        'Opis trasy wyjazdu\n(skąd–dokąd)',
         'Liczba\nfaktycznie\nprzejechanych\nkilometrów',
-        'Imię i nazwisko osoby kierującej pojazdem',
+        'Imię i nazwisko\nosoby kierującej\npojazdem',
         'Uwagi',
     ];
 
@@ -486,22 +500,20 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
             }
         }
 
-        // Dynamiczna wysokość wiersza dopasowana do treści trasy
+        // Dynamiczna wysokość wiersza dopasowana do treści trasy i celu wyjazdu
         if (isFree && !km) {
             ws2.getRow(row).height = 18;
         } else if (route) {
-            const estLines = Math.ceil(route.length / 50);
-            const explicitLines = route.split('\n').length;
-            const linesCount = Math.max(estLines, explicitLines, 1);
-            if (linesCount === 1) {
-                ws2.getRow(row).height = 20;
-            } else if (linesCount === 2) {
-                ws2.getRow(row).height = 32;
-            } else if (linesCount === 3) {
-                ws2.getRow(row).height = 44;
-            } else {
-                ws2.getRow(row).height = Math.min(linesCount * 14 + 6, 75);
+            // Kolumna E ma szerokość ~48 znaków; w 1 wierszu mieści się ok. 40-42 znaków Arial 9
+            const paragraphs = String(route).split('\n');
+            let totalLines = 0;
+            for (const p of paragraphs) {
+                totalLines += Math.max(1, Math.ceil(p.length / 42));
             }
+            const linesCount = Math.max(totalLines, 1);
+            const celLines = (cel && cel.length > 18) ? 2 : 1;
+            const effectiveLines = Math.max(linesCount, celLines);
+            ws2.getRow(row).height = Math.max(22, effectiveLines * 13.5 + 5);
         } else {
             ws2.getRow(row).height = 20;
         }
@@ -551,47 +563,49 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     gSig1.font      = font('Arial', 8, { italic: true, color: '6B7280' });
     gSig1.alignment = align('center', 'top');
 
-    // Auto-adjust column widths with sensible minimums and content fitting
-    for (let colIdx = 1; colIdx <= 8; colIdx++) {
-        const colLet = colLetter(colIdx);
-        let maxLength = 0;
-        const wsCol = ws2.getColumn(colIdx);
-        wsCol.eachCell({ includeEmpty: false }, (cell) => {
-            if (cell.row < 6 || cell.row > sr) return;
-            if (!cell.value) return;
-            if (cell.value instanceof Date) return;
-            const lines = String(cell.value).split('\n');
-            for (const line of lines) {
-                if (line.length > maxLength) maxLength = line.length;
+    // Auto-adjust column widths based ONLY on headers (row 6) and daily rows (7 .. sr - 1)
+    // NEVER inspect row sr (merged summary) or signature rows to avoid cell value inheritance
+    for (let ci = 1; ci <= 8; ci++) {
+        let maxLen = 0;
+        for (let r = 6; r < sr; r++) {
+            const cell = ws2.getCell(`${colLetter(ci)}${r}`);
+            if (!cell || cell.value === null || cell.value === undefined) continue;
+            if (cell.value instanceof Date) {
+                maxLen = Math.max(maxLen, 10);
+                continue;
             }
-        });
+            const str = String(cell.value);
+            const lines = str.split('\n');
+            for (const line of lines) {
+                if (line.length > maxLen) maxLen = line.length;
+            }
+        }
 
         let targetWidth;
-        if (colLet === 'A') {
-            targetWidth = Math.max(6, maxLength + 2);
-        } else if (colLet === 'B') {
-            targetWidth = Math.max(6, maxLength + 2);
-        } else if (colLet === 'C') {
-            targetWidth = 14;
-        } else if (colLet === 'D') {
-            // Cel wyjazdu – pełna treść bez obcinania (min. 38)
-            targetWidth = Math.max(38, Math.min(maxLength + 3, 52));
-        } else if (colLet === 'E') {
-            // Opis trasy wyjazdu – szeroka kolumna z zawijaniem
-            targetWidth = Math.max(55, Math.min(maxLength + 2, 65));
-        } else if (colLet === 'F') {
+        if (ci === 1) {
+            targetWidth = 5.5;
+        } else if (ci === 2) {
+            targetWidth = 5.5;
+        } else if (ci === 3) {
+            targetWidth = 12.5;
+        } else if (ci === 4) {
+            // Cel wyjazdu: compact wrap, fits "dowóz/odbiór pracowników" or short custom purpose
+            targetWidth = Math.max(18, Math.min(maxLen + 2, 26));
+        } else if (ci === 5) {
+            // Opis trasy wyjazdu: standard landscape route column
+            targetWidth = 48;
+        } else if (ci === 6) {
             // Liczba kilometrów
-            targetWidth = 14;
-        } else if (colLet === 'G') {
-            // Imię i nazwisko kierowcy
-            targetWidth = Math.max(26, Math.min(maxLength + 3, 35));
-        } else if (colLet === 'H') {
+            targetWidth = 11;
+        } else if (ci === 7) {
+            // Imię i nazwisko osoby kierującej pojazdem
+            targetWidth = Math.max(16, Math.min(maxLen + 2, 24));
+        } else if (ci === 8) {
             // Uwagi (np. tankowanie)
-            targetWidth = Math.max(16, Math.min(maxLength + 3, 22));
+            targetWidth = Math.max(10, Math.min(maxLen + 2, 14));
         }
-        if (targetWidth) {
-            ws2.getColumn(colIdx).width = targetWidth;
-        }
+
+        ws2.getColumn(ci).width = targetWidth;
     }
 
     // Page setup
