@@ -191,7 +191,7 @@ async function getLastEwidencjaForPlate(userId, plate, beforeDate = null, vehicl
 
     if (!matches.length) return null;
 
-    // If beforeDate is given (e.g. '2026-09-01'), find prior month's record
+    // If beforeDate is given (e.g. '2026-09-01'), ONLY return a record from a previous period
     if (beforeDate) {
         // 1. Prior record with valid odometer_end (> 0) ending on or before beforeDate
         const priorEndWithOdo = matches.find(r => r.period_end && r.period_end <= beforeDate && Number(r.odometer_end) > 0);
@@ -201,23 +201,15 @@ async function getLastEwidencjaForPlate(userId, plate, beforeDate = null, vehicl
         const priorEnd = matches.find(r => r.period_end && r.period_end <= beforeDate);
         if (priorEnd) return priorEnd;
 
-        // 3. Record starting strictly before beforeDate with valid odometer
-        const priorStart = matches.find(r => r.period_start && r.period_start < beforeDate && (Number(r.odometer_end) > 0 || Number(r.odometer_start) > 0));
+        // 3. Record starting strictly before beforeDate with valid odometer_end
+        const priorStart = matches.find(r => r.period_start && r.period_start < beforeDate && Number(r.odometer_end) > 0);
         if (priorStart) return priorStart;
 
-        // 4. Same period already generated (re-analyzing current month) -> return its starting odometer
-        const samePeriod = matches.find(r => r.period_start && r.period_start === beforeDate);
-        if (samePeriod) {
-            return {
-                ...samePeriod,
-                odometer_end: (typeof samePeriod.odometer_start === 'number' && samePeriod.odometer_start > 0)
-                    ? samePeriod.odometer_start
-                    : samePeriod.odometer_end
-            };
-        }
+        // No record from a previous period exists for this vehicle
+        return null;
     }
 
-    // Default to the latest match
+    // Default to the latest match (when beforeDate is not specified)
     return matches[0] || null;
 }
 

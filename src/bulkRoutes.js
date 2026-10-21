@@ -121,7 +121,7 @@ async function handleBulkAnalyze(req, res) {
 
                 const carModel = rawModel || (veh && (veh.make || veh.model) ? [veh.make, veh.model].filter(Boolean).join(' ') : (lastEwid ? lastEwid.car_model : ''));
                 const driverName = (lastEwid && lastEwid.driver_name) ? lastEwid.driver_name : '';
-                const rawOdo = lastEwid ? (lastEwid.odometer_end ?? lastEwid.odometer_start) : null;
+                const rawOdo = lastEwid ? lastEwid.odometer_end : null;
                 const parsedOdo = (rawOdo !== null && rawOdo !== undefined && !isNaN(Number(rawOdo)) && Number(rawOdo) > 0)
                     ? Math.round(Number(rawOdo))
                     : 0;

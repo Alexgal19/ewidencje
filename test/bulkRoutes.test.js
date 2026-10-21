@@ -171,4 +171,43 @@ describe('bulkRoutes', () => {
             supabase._setAdminClientForTesting(null);
         }
     });
+
+    it('getLastEwidencjaForPlate returns null when vehicle has no previous month records (only same month)', async () => {
+        const supabase = require('../src/supabase');
+
+        const mockData = [
+            {
+                id: '10',
+                plate: 'DSW86212',
+                period_start: '2026-09-01',
+                period_end: '2026-09-30',
+                odometer_start: 0,
+                odometer_end: 1232,
+                driver_name: '',
+                user_id: 'u1'
+            }
+        ];
+
+        const mockClient = {
+            from: () => ({
+                select: () => {
+                    const builder = {
+                        order: () => builder,
+                        eq: () => builder,
+                        then: (resolve) => resolve({ data: mockData, error: null })
+                    };
+                    return builder;
+                }
+            })
+        };
+
+        supabase._setAdminClientForTesting(mockClient);
+
+        try {
+            const result = await supabase.getLastEwidencjaForPlate('u1', 'DSW86212', '2026-09-01');
+            assert.strictEqual(result, null, 'Should return null when no record before 2026-09-01 exists');
+        } finally {
+            supabase._setAdminClientForTesting(null);
+        }
+    });
 });
