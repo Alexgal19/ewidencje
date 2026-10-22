@@ -91,7 +91,11 @@ describe('generateExcel', () => {
         const ws2 = wb.worksheets[1];
 
         // Sheet 1 pageSetup check
-        assert.strictEqual(ws1.pageSetup.orientation, 'portrait');
+        // Sheet 1 & Sheet 2 pageSetup check (both must be A4 Landscape for printing)
+        assert.strictEqual(ws1.pageSetup.orientation, 'landscape');
+        assert.strictEqual(ws1.pageSetup.paperSize, 9);
+        assert.strictEqual(ws2.pageSetup.orientation, 'landscape');
+        assert.strictEqual(ws2.pageSetup.paperSize, 9);
 
         // Column widths should NOT be bloated by merged cells (A, B shouldn't be ~31)
         assert.ok(ws2.getColumn(1).width <= 7, 'Col A width should be <= 7, got ' + ws2.getColumn(1).width);

@@ -2041,7 +2041,7 @@ function showPremiumGenModal(title, sub, customSteps, customSubMessages) {
 
   const stepLabels = Array.isArray(customSteps) && customSteps.length === 4
     ? customSteps
-    : ['Trasy GPS', 'Kilometry & Anomalie', 'Format A4', 'Gotowy plik'];
+    : ['Trasy GPS', 'Kilometry & Anomalie', 'A4 Poziomo', 'Gotowy plik'];
   for (let s = 1; s <= 4; s++) {
     const chip = document.getElementById('prem-step-' + s);
     if (chip) {
@@ -2054,7 +2054,7 @@ function showPremiumGenModal(title, sub, customSteps, customSubMessages) {
     ? customSubMessages
     : [
         'Weryfikacja liczników, tankowań i wykrywanie anomalii...',
-        'Precyzyjne formatowanie arkuszy A4 i formuł Excel...',
+        'Precyzyjne formatowanie arkuszy A4 w orientacji poziomej i formuł Excel...',
         'Pakowanie pliku i szykowanie do pobrania...'
       ];
 
@@ -2533,7 +2533,7 @@ async function runBulkGenerate() {
       </div>
       <div class="prem-step-chip" id="prem-step-3">
         <span class="step-dot"></span>
-        <span>Format A4</span>
+        <span>Format A4 (Poziomo)</span>
       </div>
       <div class="prem-step-chip" id="prem-step-4">
         <span class="step-dot"></span>

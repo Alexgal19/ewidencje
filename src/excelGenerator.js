@@ -111,17 +111,18 @@ async function generateExcel(plate, carModel, dateFrom, dateTo,
     // ── Tytułowa ──────────────────────────────────────────────────────────────
     const ws = wb.addWorksheet('Tytułowa');
     ws.views = [{ showGridLines: false }];
-    ws.pageSetup.orientation = 'portrait';
+    ws.pageSetup.orientation = 'landscape';
     ws.pageSetup.paperSize   = 9; // A4
     ws.pageSetup.fitToPage   = true;
     ws.pageSetup.fitToWidth  = 1;
-    ws.pageSetup.fitToHeight = 0;
+    ws.pageSetup.fitToHeight = 1;
     ws.pageSetup.horizontalCentered = true;
+    ws.pageSetup.verticalCentered   = true;
     ws.pageSetup.margins = {
         left: 0.5,
         right: 0.5,
-        top: 0.75,
-        bottom: 0.75,
+        top: 0.5,
+        bottom: 0.5,
         header: 0.3,
         footer: 0.3,
     };
