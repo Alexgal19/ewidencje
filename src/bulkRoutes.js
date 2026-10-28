@@ -17,7 +17,10 @@ const {
 
 const router = express.Router();
 
-const BULK_ADMIN_EMAIL = 'o.holiadynets@swl.com.pl';
+const BULK_ADMIN_EMAILS = [
+    'o.holiadynets@swl.com.pl',
+    'y.kanivets@smartwork.pl',
+];
 
 function createZipArchive(options = {}) {
     if (typeof archiver === 'function') {
@@ -51,7 +54,7 @@ function buildOutName(plate, year, month) {
 }
 
 /**
- * Access control middleware: only o.holiadynets@swl.com.pl is authorized for bulk operations.
+ * Access control middleware: only the emails in BULK_ADMIN_EMAILS are authorized for bulk operations.
  */
 function requireBulkAdmin(req, res, next) {
     if (!isSupabaseConfigured()) {
@@ -60,9 +63,9 @@ function requireBulkAdmin(req, res, next) {
         });
     }
     const email = (req.user && req.user.email ? req.user.email : '').toLowerCase().trim();
-    if (email !== BULK_ADMIN_EMAIL) {
+    if (!BULK_ADMIN_EMAILS.includes(email)) {
         return res.status(403).json({
-            error: `Brak uprawnień. Moduł masowego generowania jest dostępny wyłącznie dla: ${BULK_ADMIN_EMAIL}`
+            error: `Brak uprawnień. Moduł masowego generowania jest dostępny wyłącznie dla: ${BULK_ADMIN_EMAILS.join(', ')}`
         });
     }
     next();
@@ -544,7 +547,7 @@ async function handleBulkGenerateSingle(req, res) {
 }
 
 module.exports = {
-    BULK_ADMIN_EMAIL,
+    BULK_ADMIN_EMAILS,
     requireBulkAdmin,
     handleBulkAnalyze,
     handleBulkGenerate,

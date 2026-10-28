@@ -2,7 +2,7 @@
 
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
-const { requireBulkAdmin, buildOutName, BULK_ADMIN_EMAIL, createZipArchive } = require('../src/bulkRoutes');
+const { requireBulkAdmin, buildOutName, BULK_ADMIN_EMAILS, createZipArchive } = require('../src/bulkRoutes');
 
 describe('bulkRoutes', () => {
     const origUrl = process.env.SUPABASE_URL;
@@ -44,22 +44,24 @@ describe('bulkRoutes', () => {
 
         assert.strictEqual(status, 403);
         assert.strictEqual(nextCalled, false);
-        assert.ok(responseJson.error.includes(BULK_ADMIN_EMAIL));
+        assert.ok(BULK_ADMIN_EMAILS.every(e => responseJson.error.includes(e)));
     });
 
-    it('allows o.holiadynets@swl.com.pl (case-insensitive)', () => {
-        let status = null;
-        const res = {
-            status: (s) => ({ json: () => {} })
-        };
+    for (const adminEmail of BULK_ADMIN_EMAILS) {
+        it(`allows ${adminEmail} (case-insensitive)`, () => {
+            let status = null;
+            const res = {
+                status: (s) => ({ json: () => {} })
+            };
 
-        const reqAdmin = { user: { email: 'O.Holiadynets@swl.com.pl' } };
-        let nextCalled = false;
-        requireBulkAdmin(reqAdmin, res, () => { nextCalled = true; });
+            const reqAdmin = { user: { email: adminEmail.toUpperCase() } };
+            let nextCalled = false;
+            requireBulkAdmin(reqAdmin, res, () => { nextCalled = true; });
 
-        assert.strictEqual(status, null);
-        assert.strictEqual(nextCalled, true);
-    });
+            assert.strictEqual(status, null);
+            assert.strictEqual(nextCalled, true);
+        });
+    }
 
     it('returns 503 when Supabase is not configured', () => {
         delete process.env.SUPABASE_URL;
@@ -71,7 +73,7 @@ describe('bulkRoutes', () => {
                 return { json: (o) => { responseJson = o; } };
             }
         };
-        const req = { user: { email: BULK_ADMIN_EMAIL } };
+        const req = { user: { email: BULK_ADMIN_EMAILS[0] } };
         requireBulkAdmin(req, res, () => {});
         assert.strictEqual(status, 503);
         assert.ok(responseJson.error.includes('Supabase'));

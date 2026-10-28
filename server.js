@@ -53,7 +53,7 @@ app.post('/api/ewidencje/:id/photos', requireAuth, upload.array('photos', 20), a
 });
 
 
-// ── Moduł Floty Masowej (wyłącznie dla o.holiadynets@swl.com.pl) ───────────────
+// ── Moduł Floty Masowej (tylko adresy z BULK_ADMIN_EMAILS w src/bulkRoutes.js) ──
 const bulkUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 350 } });
 
 app.post('/api/bulk/analyze',

@@ -742,7 +742,7 @@ h1{font-size:var(--fs-3xl);color:var(--white);letter-spacing:-.01em}
     </div>
 
 
-    <!-- ── FLOTA MASOWA (WYŁĄCZNIE DLA o.holiadynets@swl.com.pl) ── -->
+    <!-- ── FLOTA MASOWA (TYLKO DLA BULK_ADMIN_EMAILS) ── -->
     <div id="view-bulk" class="tab-view" hidden>
       <div class="card">
         <div class="card-head">
@@ -965,6 +965,7 @@ function installApp(){
 }
 
 // ── Supabase client ──────────────────────────────────────────────────────────
+const BULK_ADMIN_EMAILS=['o.holiadynets@swl.com.pl','y.kanivets@smartwork.pl'];
 let supabaseClient=null;
 let currentUser=null;
 
@@ -1011,7 +1012,7 @@ function showApp(){
   document.getElementById('view-app').hidden=false;
   document.getElementById('user-email').textContent=currentUser.email||'';
   document.getElementById('user-avatar').textContent=(currentUser.email||'?').charAt(0);
-  const isBulkAdmin = currentUser && currentUser.email && currentUser.email.toLowerCase().trim() === 'o.holiadynets@swl.com.pl';
+  const isBulkAdmin = currentUser && currentUser.email && BULK_ADMIN_EMAILS.includes(currentUser.email.toLowerCase().trim());
   const bulkTab = document.getElementById('tab-bulk');
   if (bulkTab) bulkTab.style.display = isBulkAdmin ? 'flex' : 'none';
   const bulkBanner = document.getElementById('bulk-fleet-banner');
@@ -1649,7 +1650,7 @@ initSupabase().catch(err=>{
 });
 
 
-// ── Moduł Flota Masowa (wyłącznie dla o.holiadynets@swl.com.pl) ─────────────
+// ── Moduł Flota Masowa (tylko dla BULK_ADMIN_EMAILS) ────────────────────────
 window.bulkItems = [];
 window.savedBulkGpsFiles = [];
 window.savedBulkFuelFile = null;
