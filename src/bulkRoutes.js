@@ -20,6 +20,7 @@ const router = express.Router();
 const BULK_ADMIN_EMAILS = [
     'o.holiadynets@swl.com.pl',
     'y.kanivets@smartwork.pl',
+    'm.yaroshuk@smartwork.pl',
 ];
 
 function createZipArchive(options = {}) {
